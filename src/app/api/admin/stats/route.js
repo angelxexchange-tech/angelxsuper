@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/app/lib/prisma';
-import { verifyAdminCookie } from '@/app/lib/adminAuth';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/User';
+import Transaction from '@/lib/models/Transaction';
+import { verifyAdminCookie } from '@/lib/adminAuth';
 
 export async function GET(request) {
   const auth = verifyAdminCookie(request);
@@ -9,32 +11,29 @@ export async function GET(request) {
   }
 
   try {
+    await dbConnect();
     const [userCount, pendingDeposits, pendingSells, recentTxns] = await Promise.all([
-      prisma.user.count(),
-      prisma.transaction.count({
-        where: {
-          type: 'DEPOSIT',
-          status: 'PENDING',
-        },
-      }),
-      prisma.transaction.count({
-        where: {
-          type: 'SELL',
-          status: 'PENDING',
-        },
-      }),
-      prisma.transaction.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: { user: { select: { fullName: true, email: true } } },
-      }),
+      User.countDocuments(),
+      Transaction.countDocuments({ type: 'DEPOSIT', status: 'PENDING' }),
+      Transaction.countDocuments({ type: 'SELL', status: 'PENDING' }),
+      Transaction.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate({ path: 'userId', select: 'fullName email' })
+        .lean()
     ]);
+
+    // Map `userId` to `user`
+    const formattedRecent = recentTxns.map(t => {
+      const { userId, ...rest } = t;
+      return { ...rest, user: userId };
+    });
 
     return NextResponse.json({
       users: userCount,
       deposits: pendingDeposits,
       sells: pendingSells,
-      recentActivity: recentTxns,
+      recentActivity: formattedRecent,
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

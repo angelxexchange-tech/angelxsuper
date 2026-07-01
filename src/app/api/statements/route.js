@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/User';
+import Transaction from '@/lib/models/Transaction';
 import jwt from 'jsonwebtoken';
 
 async function getCurrentUser(req) {
@@ -9,7 +11,8 @@ async function getCurrentUser(req) {
   const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    return await prisma.user.findUnique({ where: { id: payload.id } });
+    await dbConnect();
+    return await User.findById(payload.id).lean();
   } catch (err) {
     return null;
   }
@@ -22,10 +25,11 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const statements = await prisma.transaction.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
+    await dbConnect();
+
+    const statements = await Transaction.find({ userId: user._id })
+      .sort({ createdAt: -1 })
+      .lean();
 
     return NextResponse.json({ statements });
   } catch (err) {

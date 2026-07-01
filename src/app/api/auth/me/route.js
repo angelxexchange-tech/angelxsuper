@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth';
-import prisma  from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import Transaction from '@/lib/models/Transaction';
 
 export async function GET(req) {
   try {
@@ -11,6 +12,8 @@ export async function GET(req) {
       );
     }
 
+    await dbConnect();
+
     // If wallet missing, fallback to zeros
     const wallet = user.wallet || {
       usdtAvailable: 0,
@@ -19,31 +22,23 @@ export async function GET(req) {
     };
 
     // Calculate pending stats
-    const sellPendingTx = await prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        userId: user.id,
-        type: { in: ['SELL', 'WITHDRAW'] },
-        status: 'PENDING',
-      },
-    });
+    const sellPendingTx = await Transaction.aggregate([
+      { $match: { userId: user._id, type: { $in: ['SELL', 'WITHDRAW'] }, status: 'PENDING' } },
+      { $group: { _id: null, amount: { $sum: '$amount' } } }
+    ]);
 
-    const depositPendingTx = await prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        userId: user.id,
-        type: 'DEPOSIT',
-        status: 'PENDING',
-      },
-    });
+    const depositPendingTx = await Transaction.aggregate([
+      { $match: { userId: user._id, type: 'DEPOSIT', status: 'PENDING' } },
+      { $group: { _id: null, amount: { $sum: '$amount' } } }
+    ]);
 
-    const sellPending = sellPendingTx._sum.amount || 0;
-    const depositPending = depositPendingTx._sum.amount || 0;
+    const sellPending = sellPendingTx[0]?.amount || 0;
+    const depositPending = depositPendingTx[0]?.amount || 0;
 
     return new Response(
       JSON.stringify({
         user: {
-          id: user.id,
+          id: user._id,
           email: user.email,
           fullName: user.fullName,
           mobile: user.mobile,

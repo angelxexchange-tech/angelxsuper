@@ -1,6 +1,8 @@
 // POST /api/admin/confirm-selling-request
-import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/db";
+import Transaction from "@/lib/models/Transaction";
+import Wallet from "@/lib/models/Wallet";
 import { verifyAdminCookie } from "@/lib/adminAuth";
 
 export async function POST(req) {
@@ -14,34 +16,26 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
     }
 
-    const tx = await prisma.transaction.findUnique({ where: { id: Number(transactionId) } });
+    await dbConnect();
+
+    const tx = await Transaction.findById(transactionId);
     if (!tx || tx.status !== "PENDING") {
       return NextResponse.json({ error: "Transaction not found or already processed" }, { status: 404 });
     }
 
-    // Update wallet atomically
-    const wallet = await prisma.$transaction(async (prisma) => {
-      const updatedWallet = await prisma.wallet.upsert({
-        where: { userId: tx.userId },
-        update: {
-          usdtAvailable: { decrement: tx.amount },
-          usdtWithdrawn: { increment: tx.amount },
-        },
-        create: {
-          userId: tx.userId,
-          usdtAvailable: 0,
-          usdtDeposited: 0,
+    const wallet = await Wallet.findOneAndUpdate(
+      { userId: tx.userId },
+      {
+        $inc: {
+          usdtAvailable: -tx.amount,
           usdtWithdrawn: tx.amount,
-        },
-      });
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
-      await prisma.transaction.update({
-        where: { id: tx.id },
-        data: { status: "SUCCESS" },
-      });
-
-      return updatedWallet;
-    });
+    tx.status = "SUCCESS";
+    await tx.save();
 
     return NextResponse.json({ success: true, wallet });
   } catch (err) {

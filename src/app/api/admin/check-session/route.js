@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Admin from "@/lib/models/Admin";
 
 export async function GET(req) {
   try {
@@ -10,7 +11,8 @@ export async function GET(req) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const admin = await prisma.admin.findUnique({ where: { id: decoded.id } });
+    await dbConnect();
+    const admin = await Admin.findById(decoded.id);
     if (!admin) return NextResponse.json({ valid: false }, { status: 401 });
 
     return NextResponse.json({ valid: true, email: admin.email });

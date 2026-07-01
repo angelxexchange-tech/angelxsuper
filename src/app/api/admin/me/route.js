@@ -1,13 +1,20 @@
 import { verifyAdminToken } from "@/lib/adminAuth";
-import Prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Admin from "@/lib/models/Admin";
+import { NextResponse } from "next/server";
 
+export async function GET(req) {
+  try {
+    const decoded = verifyAdminToken(req);
+    if (!decoded) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-export default async function handler(req, res) {
-  const decoded = verifyAdminToken(req);
-  if (!decoded) return res.status(401).json({ error: "Unauthorized" });
+    await dbConnect();
+    const admin = await Admin.findById(decoded.id);
+    if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const admin = await prisma.admin.findUnique({ where: { id: decoded.id } });
-  if (!admin) return res.status(401).json({ error: "Unauthorized" });
-
-  res.status(200).json({ admin: { id: admin.id, email: admin.email } });
+    return NextResponse.json({ admin: { id: admin._id, email: admin.email } });
+  } catch (err) {
+    console.error("Admin me error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

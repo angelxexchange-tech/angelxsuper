@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Admin from "@/lib/models/Admin";
 import { verifyAdminCookie } from "@/lib/adminAuth";
 import bcrypt from "bcryptjs";
 
@@ -8,10 +9,11 @@ export async function GET(req) {
     const admin = verifyAdminCookie(req);
     if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const record = await prisma.admin.findUnique({ where: { email: admin.email } });
+    await dbConnect();
+    const record = await Admin.findOne({ email: admin.email });
     if (!record) return NextResponse.json({ error: "Admin not found" }, { status: 404 });
 
-    return NextResponse.json({ success: true, admin: { email: record.email, id: record.id } });
+    return NextResponse.json({ success: true, admin: { email: record.email, id: record._id } });
   } catch (err) {
     console.error("Error fetching admin profile:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -30,7 +32,8 @@ export async function POST(req) {
       return NextResponse.json({ error: "Current password is required" }, { status: 400 });
     }
 
-    const record = await prisma.admin.findUnique({ where: { email: admin.email } });
+    await dbConnect();
+    const record = await Admin.findOne({ email: admin.email });
     if (!record) return NextResponse.json({ error: "Admin not found" }, { status: 404 });
 
     const valid = await bcrypt.compare(currentPassword, record.password);
@@ -49,14 +52,15 @@ export async function POST(req) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
-    const updated = await prisma.admin.update({ where: { id: record.id }, data: updateData });
+    const updated = await Admin.findByIdAndUpdate(record._id, updateData, { new: true });
 
     const changedEmail = updated.email !== record.email;
 
     return NextResponse.json({ success: true, admin: { email: updated.email }, emailChanged: changedEmail });
   } catch (err) {
     console.error("Error updating admin profile:", err);
-    if (err?.code === 'P2002') {
+    // MongoDB duplicate key error code is 11000
+    if (err?.code === 11000) {
       return NextResponse.json({ error: "Email already in use" }, { status: 400 });
     }
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/app/lib/prisma';
-import { verifyAdminCookie } from '@/app/lib/adminAuth';
+import dbConnect from '@/lib/db';
+import Transaction from '@/lib/models/Transaction';
+import User from '@/lib/models/User';
+import { verifyAdminCookie } from '@/lib/adminAuth';
 
 export async function GET(request) {
   const auth = verifyAdminCookie(request);
@@ -14,25 +16,28 @@ export async function GET(request) {
   const skip = (page - 1) * pageSize;
 
   try {
+    await dbConnect();
     const [transactions, total] = await Promise.all([
-      prisma.transaction.findMany({
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              fullName: true,
-              email: true
-            }
-          }
-        }
-      }),
-      prisma.transaction.count()
+      Transaction.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize)
+        .populate({
+          path: 'userId',
+          select: 'fullName email'
+        })
+        .lean(),
+      Transaction.countDocuments()
     ]);
 
+    // Map userId to user for the frontend
+    const formattedTransactions = transactions.map(t => {
+        const { userId, ...rest } = t;
+        return { ...rest, user: userId };
+    });
+
     return NextResponse.json({
-      transactions,
+      transactions: formattedTransactions,
       total,
       page,
       pageSize

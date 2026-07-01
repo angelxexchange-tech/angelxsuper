@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/app/lib/prisma';
-import { verifyAdminCookie } from '@/app/lib/adminAuth';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/User';
+import Wallet from '@/lib/models/Wallet';
+import Transaction from '@/lib/models/Transaction';
+import { verifyAdminCookie } from '@/lib/adminAuth';
 
 export async function POST(request) {
   const auth = verifyAdminCookie(request);
@@ -20,45 +23,48 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+    await dbConnect();
+
+    const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    const wallet = await Wallet.findOne({ userId }).lean();
 
-    // Update wallet
+    // Calculate new balance
     let newBalance;
     if (type === 'CREDIT') {
-      newBalance = (user.wallet?.usdtAvailable || 0) + numAmount;
+      newBalance = (wallet?.usdtAvailable || 0) + numAmount;
     } else {
-      newBalance = (user.wallet?.usdtAvailable || 0) - numAmount;
+      newBalance = (wallet?.usdtAvailable || 0) - numAmount;
     }
 
-    // Create transaction record
-    await prisma.$transaction([
-      prisma.wallet.upsert({
-        where: { userId: parseInt(userId) },
-        create: {
-          userId: parseInt(userId),
-          usdtAvailable: newBalance,
-          usdtDeposited: user.wallet?.usdtDeposited || 0,
-          usdtWithdrawn: user.wallet?.usdtWithdrawn || 0
+    // Update wallet — MongoDB shared clusters don't support multi-document transactions,
+    // so we do sequential operations
+    await Wallet.findOneAndUpdate(
+      { userId: userId },
+      {
+        $setOnInsert: {
+            userId: userId,
+            usdtDeposited: wallet?.usdtDeposited || 0,
+            usdtWithdrawn: wallet?.usdtWithdrawn || 0
         },
-        update: {
-          usdtAvailable: newBalance
+        $set: {
+            usdtAvailable: newBalance
         }
-      }),
-      prisma.transaction.create({
-        data: {
-          userId: parseInt(userId),
-          depositId: `ADJ-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-          type: type === 'CREDIT' ? 'ADMIN_CREDIT' : 'ADMIN_DEBIT',
-          amount: numAmount,
-          currency: 'USDT',
-          status: 'COMPLETED',
-          description: reason || `Admin ${type} adjustment`
-        }
-      })
-    ]);
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await Transaction.create({
+      userId: userId,
+      depositId: `ADJ-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      type: type === 'CREDIT' ? 'ADMIN_CREDIT' : 'ADMIN_DEBIT',
+      amount: numAmount,
+      currency: 'USDT',
+      status: 'COMPLETED',
+      description: reason || `Admin ${type} adjustment`
+    });
 
     return NextResponse.json({ success: true, newBalance });
   } catch (error) {

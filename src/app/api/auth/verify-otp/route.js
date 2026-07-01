@@ -1,4 +1,6 @@
-import prisma from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/User';
+import Wallet from '@/lib/models/Wallet';
 import { generateToken } from '@/lib/auth';
 
 export async function POST(req) {
@@ -11,8 +13,10 @@ export async function POST(req) {
       return new Response(JSON.stringify({ error: 'Email and OTP are required' }), { status: 400 });
     }
 
+    await dbConnect();
+
     // Find user in DB
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await User.findOne({ email });
 
     if (!user) {
       return new Response(JSON.stringify({ error: 'Invalid OTP' }), { status: 401 });
@@ -31,23 +35,18 @@ export async function POST(req) {
     const token = generateToken(user);
 
     // Clear OTP
-    await prisma.user.update({
-      where: { email },
-      data: { otp: null, otpExpiry: null },
-    });
+    await User.updateOne({ email }, { $unset: { otp: 1, otpExpiry: 1 } });
 
     // Ensure wallet exists
-    let wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });
+    let wallet = await Wallet.findOne({ userId: user._id });
     if (!wallet) {
-      wallet = await prisma.wallet.create({
-        data: {
-          userId: user.id,
-          usdtAvailable: 0,
-          usdtDeposited: 0,
-          usdtWithdrawn: 0,
-        },
+      wallet = await Wallet.create({
+        userId: user._id,
+        usdtAvailable: 0,
+        usdtDeposited: 0,
+        usdtWithdrawn: 0,
       });
-      console.log(`Wallet created for userId: ${user.id}`);
+      console.log(`Wallet created for userId: ${user._id}`);
     }
 
     // Redirect logic: if profile is complete (fullName and mobile) go to home, else complete profile

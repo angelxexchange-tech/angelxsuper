@@ -1,5 +1,6 @@
 // POST /api/admin/reject-selling-request
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Transaction from "@/lib/models/Transaction";
 import { NextResponse } from "next/server";
 import { verifyAdminCookie } from "@/lib/adminAuth";
 
@@ -13,15 +14,14 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
     }
 
-    const tx = await prisma.transaction.findUnique({ where: { id: Number(transactionId) } });
+    await dbConnect();
+    const tx = await Transaction.findById(transactionId);
     if (!tx || tx.status !== "PENDING") {
       return NextResponse.json({ error: "Transaction not found or already processed" }, { status: 404 });
     }
 
-    await prisma.transaction.update({
-      where: { id: tx.id },
-      data: { status: "FAILED" },
-    });
+    tx.status = "FAILED";
+    await tx.save();
 
     return NextResponse.json({ success: true });
   } catch (err) {

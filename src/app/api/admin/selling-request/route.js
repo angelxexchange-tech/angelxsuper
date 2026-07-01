@@ -1,4 +1,5 @@
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Transaction from "@/lib/models/Transaction";
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
@@ -29,17 +30,17 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing bank or amount" }, { status: 400 });
     }
 
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId,
-        depositId: `SELL-${Date.now()}`,
-        type: "SELL",
-        amount,
-        currency: "USDT",
-        network: "BANK",
-        address: bank.accountNo,
-        status: "PENDING",
-      },
+    await dbConnect();
+
+    const transaction = await Transaction.create({
+      userId,
+      depositId: `SELL-${Date.now()}`,
+      type: "SELL",
+      amount,
+      currency: "USDT",
+      network: "BANK",
+      address: bank.accountNo,
+      status: "PENDING",
     });
 
     return NextResponse.json({ success: true, transaction });

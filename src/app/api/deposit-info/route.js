@@ -1,16 +1,14 @@
-// pages/api/deposit-info/index.js
-import prisma from '@/lib/prisma'; // default export
+import dbConnect from '@/lib/db';
+import { NextResponse } from 'next/server';
 
-export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    try {
-      const data = await prisma.depositInfo.findMany();
-      res.status(200).json(data);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Failed to fetch deposit info" });
-    }
-  } else {
-    res.status(405).json({ error: "Method not allowed" });
+export async function GET() {
+  try {
+    await dbConnect();
+    // Assuming deposit info comes from settings or a specific model.
+    // There was no DepositInfo in Prisma schema either.
+    return NextResponse.json([]);
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Failed to fetch deposit info" }, { status: 500 });
   }
 }

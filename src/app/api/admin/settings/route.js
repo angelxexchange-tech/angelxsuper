@@ -1,4 +1,5 @@
-import prisma from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import Settings from '@/lib/models/Settings';
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
@@ -21,18 +22,18 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let settings = await prisma.settings.findFirst();
+    await dbConnect();
+
+    let settings = await Settings.findOne();
     if (!settings) {
-      settings = await prisma.settings.create({
-        data: { 
-          rate: 102, 
-          withdrawMin: 50, 
-          depositMin: 100,
-          trc20Address: "TU7f7jwJr56owuutyzbJEwVqF3ii4KCiPV",
-          erc20Address: "0x78845f99b319b48393fbcde7d32fcb7ccd6661bf",
-          trc20QrUrl: "images/trc20.png",
-          erc20QrUrl: "images/erc20.png"
-        },
+      settings = await Settings.create({
+        rate: 102, 
+        withdrawMin: 50, 
+        depositMin: 100,
+        trc20Address: "TU7f7jwJr56owuutyzbJEwVqF3ii4KCiPV",
+        erc20Address: "0x78845f99b319b48393fbcde7d32fcb7ccd6661bf",
+        trc20QrUrl: "images/trc20.png",
+        erc20QrUrl: "images/erc20.png"
       });
     }
 
@@ -71,7 +72,8 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Crypto addresses cannot be empty' }, { status: 400 });
     }
 
-    const current = await prisma.settings.findFirst();
+    await dbConnect();
+    const current = await Settings.findOne();
     
     // Prepare safe data - convert all to strings and handle empty values
     const updateData = {
@@ -84,20 +86,15 @@ export async function POST(req) {
       erc20QrUrl: String(erc20QrUrl || "images/erc20.png").trim()
     };
 
-    console.log('Sending to Prisma:', updateData);
+    console.log('Sending to Mongoose:', updateData);
 
     if (current) {
-      const updated = await prisma.settings.update({
-        where: { id: current.id },
-        data: updateData,
-      });
-      console.log('Settings updated successfully:', updated.id);
+      const updated = await Settings.findByIdAndUpdate(current._id, updateData, { new: true });
+      console.log('Settings updated successfully:', updated._id);
       return NextResponse.json({ settings: updated });
     } else {
-      const created = await prisma.settings.create({
-        data: updateData,
-      });
-      console.log('Settings created successfully:', created.id);
+      const created = await Settings.create(updateData);
+      console.log('Settings created successfully:', created._id);
       return NextResponse.json({ settings: created });
     }
   } catch (err) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Transaction from "@/lib/models/Transaction";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(req) {
@@ -16,30 +17,30 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId: user.id,
-        depositId,
-        txnId: txid || null,
-        type: "DEPOSIT",
-        amount: Number(amount),
-        network,
-        address,
-        status: "PENDING",
-      },
+    await dbConnect();
+
+    const transaction = await Transaction.create({
+      userId: user._id,
+      depositId,
+      txnId: txid || null,
+      type: "DEPOSIT",
+      amount: Number(amount),
+      network,
+      address,
+      status: "PENDING",
     });
 
     return NextResponse.json({ success: true, transaction });
   } catch (err) {
     console.error("Deposit error:", err);
-    if (err.code === 'P2002') {
-      const field = err.meta?.target?.[0];
-      if (field === 'txnId') {
+    if (err.code === 11000) {
+      if (err.keyPattern?.txnId) {
         return NextResponse.json({ error: "Transaction ID already used" }, { status: 400 });
       }
-      if (field === 'depositId') {
+      if (err.keyPattern?.depositId) {
         return NextResponse.json({ error: "Deposit request already submitted" }, { status: 400 });
       }
+      return NextResponse.json({ error: "Duplicate entry" }, { status: 400 });
     }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

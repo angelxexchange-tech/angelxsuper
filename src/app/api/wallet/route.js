@@ -1,4 +1,5 @@
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Wallet from "@/lib/models/Wallet";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req) {
@@ -9,21 +10,19 @@ export async function GET(req) {
   }
 
   try {
-    let wallet = await prisma.wallet.findUnique({
-      where: { userId: user.id },
-    });
+    await dbConnect();
+
+    let wallet = await Wallet.findOne({ userId: user._id });
 
     // If wallet somehow doesn't exist, create it automatically
     if (!wallet) {
-      wallet = await prisma.wallet.create({
-        data: {
-          userId: user.id,
-          usdtAvailable: 0,
-          usdtDeposited: 0,
-          usdtWithdrawn: 0,
-        },
+      wallet = await Wallet.create({
+        userId: user._id,
+        usdtAvailable: 0,
+        usdtDeposited: 0,
+        usdtWithdrawn: 0,
       });
-      console.log(`Wallet created for userId: ${user.id}`);
+      console.log(`Wallet created for userId: ${user._id}`);
     }
 
     return new Response(JSON.stringify(wallet), { status: 200 });

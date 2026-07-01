@@ -1,4 +1,5 @@
-import prisma from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/User';
 import jwt from 'jsonwebtoken';
 
 export async function POST(req) {
@@ -23,10 +24,13 @@ export async function POST(req) {
       return new Response(JSON.stringify({ error: 'Full name and mobile are required' }), { status: 400 });
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: payload.id },
-      data: { fullName, mobile },
-    });
+    await dbConnect();
+
+    const updatedUser = await User.findByIdAndUpdate(
+      payload.id,
+      { fullName, mobile },
+      { new: true }
+    ).lean();
 
     return new Response(
       JSON.stringify({ message: 'Profile updated successfully', user: updatedUser }),

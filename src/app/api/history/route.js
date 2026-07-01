@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth';
-import prisma  from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import Transaction from '@/lib/models/Transaction';
 
 export async function GET(req) {
   try {
@@ -8,12 +9,13 @@ export async function GET(req) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
+    await dbConnect();
+
     // Fetch last 20 transactions for this user
-    const history = await prisma.transaction.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
+    const history = await Transaction.find({ userId: user._id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
 
     return new Response(
       JSON.stringify({ history }),

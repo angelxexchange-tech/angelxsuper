@@ -1,5 +1,7 @@
 // lib/auth.js
-import  prisma  from "./prisma"; 
+import dbConnect from "./db";
+import User from "./models/User";
+import Wallet from "./models/Wallet";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -10,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
  * @returns {string} token
  */
 export function generateToken(user) {
-  const payload = { id: user.id, email: user.email };
+  const payload = { id: user._id, email: user.email };
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
 
@@ -42,12 +44,14 @@ export async function getCurrentUser(req) {
     const payload = verifyToken(token);
     if (!payload) return null;
 
-    const user = await prisma.user.findUnique({
-      where: { id: payload.id },
-      include: { wallet: true },
-    });
+    await dbConnect();
+    const user = await User.findById(payload.id).lean();
+    if (!user) return null;
 
-    return user || null;
+    const wallet = await Wallet.findOne({ userId: user._id }).lean();
+    user.wallet = wallet || null;
+
+    return user;
   } catch (err) {
     console.error("getCurrentUser error:", err);
     return null;

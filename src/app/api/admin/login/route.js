@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import prisma from "@/lib/prisma";
+import dbConnect from "@/lib/db";
+import Admin from "@/lib/models/Admin";
 import { NextResponse } from "next/server";
 
 // Ensure JWT secret exists
@@ -18,8 +19,10 @@ export async function POST(req) {
       );
     }
 
+    await dbConnect();
+
     // Check if admin exists
-    const admin = await prisma.admin.findUnique({ where: { email } });
+    const admin = await Admin.findOne({ email });
 
     if (!admin) {
       return NextResponse.json({ error: "Admin not found" }, { status: 400 });
@@ -33,7 +36,7 @@ export async function POST(req) {
 
     // Sign JWT
     const token = jwt.sign(
-      { id: admin.id, email: admin.email },
+      { id: admin._id, email: admin.email },
       JWT_SECRET,
       { expiresIn: "7d" }
     );

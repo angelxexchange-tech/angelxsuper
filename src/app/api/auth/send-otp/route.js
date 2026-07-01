@@ -1,4 +1,5 @@
-import prisma from '@/lib/prisma';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/User';
 import { sendEmail } from '@/lib/mailer';
 import crypto from 'crypto';
 
@@ -14,12 +15,14 @@ export async function POST(req) {
     const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 min expiry
 
+    await dbConnect();
+
     // Upsert user safely for serverless
-    await prisma.user.upsert({
-      where: { email },
-      update: { otp, otpExpiry },
-      create: { email, otp, otpExpiry },
-    });
+    await User.findOneAndUpdate(
+      { email },
+      { $set: { otp, otpExpiry } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     try {
       await sendEmail(email, otp);
