@@ -5,12 +5,12 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   try {
     await dbConnect();
-    let settings = await Settings.findOne();
-    if (!settings) {
-      settings = await Settings.create({
-        rate: 102, withdrawMin: 50, depositMin: 100 
-      });
-    }
+    // Return existing settings, or a default fallback if none exist (without writing to DB)
+    const settings = await Settings.findOne() || {
+      rate: 102,
+      withdrawMin: 50,
+      depositMin: 100
+    };
 
     return NextResponse.json({ settings });
   } catch (err) {

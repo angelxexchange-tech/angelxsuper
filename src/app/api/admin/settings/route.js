@@ -7,7 +7,7 @@ function getAdminFromCookie(req) {
   try {
     const token = req.cookies.get('adminToken')?.value;
     if (!token) return null;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
     return decoded;
   } catch {
     return null;
@@ -24,18 +24,15 @@ export async function GET(req) {
 
     await dbConnect();
 
-    let settings = await Settings.findOne();
-    if (!settings) {
-      settings = await Settings.create({
-        rate: 102, 
-        withdrawMin: 50, 
-        depositMin: 100,
-        trc20Address: "TU7f7jwJr56owuutyzbJEwVqF3ii4KCiPV",
-        erc20Address: "0x78845f99b319b48393fbcde7d32fcb7ccd6661bf",
-        trc20QrUrl: "images/trc20.png",
-        erc20QrUrl: "images/erc20.png"
-      });
-    }
+    const settings = await Settings.findOne() || {
+      rate: "",
+      withdrawMin: "",
+      depositMin: "",
+      trc20Address: "",
+      erc20Address: "",
+      trc20QrUrl: "",
+      erc20QrUrl: ""
+    };
 
     return NextResponse.json({ settings });
   } catch (err) {
@@ -80,10 +77,10 @@ export async function POST(req) {
       rate: r,
       depositMin: d,
       withdrawMin: w,
-      trc20Address: String(trc20Address || "").trim() || "TU7f7jwJr56owuutyzbJEwVqF3ii4KCiPV",
-      erc20Address: String(erc20Address || "").trim() || "0x78845f99b319b48393fbcde7d32fcb7ccd6661bf",
-      trc20QrUrl: String(trc20QrUrl || "images/trc20.png").trim(),
-      erc20QrUrl: String(erc20QrUrl || "images/erc20.png").trim()
+      trc20Address: String(trc20Address || "").trim(),
+      erc20Address: String(erc20Address || "").trim(),
+      trc20QrUrl: String(trc20QrUrl || "").trim(),
+      erc20QrUrl: String(erc20QrUrl || "").trim()
     };
 
     console.log('Sending to Mongoose:', updateData);

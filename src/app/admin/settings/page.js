@@ -15,6 +15,12 @@ export default function AdminSettingsPage() {
   const [trc20QrUrl, setTrc20QrUrl] = useState("");
   const [erc20QrUrl, setErc20QrUrl] = useState("");
 
+  // Security Settings
+  const [adminEmail, setAdminEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [updatingSecurity, setUpdatingSecurity] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -27,17 +33,29 @@ export default function AdminSettingsPage() {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/settings');
-      if (res.status === 401) return router.replace('/admin/login');
-      const data = await res.json();
-      if (data.settings) {
-        setRate(data.settings.rate);
-        setDepositMin(data.settings.depositMin);
-        setWithdrawMin(data.settings.withdrawMin);
-        setTrc20Address(data.settings.trc20Address || "");
-        setErc20Address(data.settings.erc20Address || "");
-        setTrc20QrUrl(data.settings.trc20QrUrl || "");
-        setErc20QrUrl(data.settings.erc20QrUrl || "");
+      const [settingsRes, profileRes] = await Promise.all([
+        fetch('/api/admin/settings'),
+        fetch('/api/admin/profile')
+      ]);
+
+      if (settingsRes.status === 401 || profileRes.status === 401) {
+        return router.replace('/admin/login');
+      }
+
+      const settingsData = await settingsRes.json();
+      if (settingsData.settings) {
+        setRate(settingsData.settings.rate);
+        setDepositMin(settingsData.settings.depositMin);
+        setWithdrawMin(settingsData.settings.withdrawMin);
+        setTrc20Address(settingsData.settings.trc20Address || "");
+        setErc20Address(settingsData.settings.erc20Address || "");
+        setTrc20QrUrl(settingsData.settings.trc20QrUrl || "");
+        setErc20QrUrl(settingsData.settings.erc20QrUrl || "");
+      }
+
+      const profileData = await profileRes.json();
+      if (profileData.success && profileData.admin) {
+        setAdminEmail(profileData.admin.email || "");
       }
     } catch (err) {
       console.error(err);
@@ -63,11 +81,9 @@ export default function AdminSettingsPage() {
         withdrawMin: parseFloat(withdrawMin) || 0,
         trc20Address: trc20Address || "",
         erc20Address: erc20Address || "",
-        trc20QrUrl: trc20QrUrl || "images/trc20.png",
-        erc20QrUrl: erc20QrUrl || "images/erc20.png"
+        trc20QrUrl: trc20QrUrl || "",
+        erc20QrUrl: erc20QrUrl || ""
       };
-
-      console.log('Sending payload:', payload);
 
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
@@ -77,7 +93,6 @@ export default function AdminSettingsPage() {
       const data = await res.json();
       if (res.ok) {
         showToast('Settings updated successfully ✅', 'success');
-        // Refresh the data to confirm
         fetchSettings();
       } else {
         showToast(data.error || 'Failed to update settings', 'error');
@@ -87,6 +102,49 @@ export default function AdminSettingsPage() {
       showToast('Failed to update settings', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateSecurity = async () => {
+    if (!currentPassword) {
+      showToast('❌ Current password is required to make changes', 'error');
+      return;
+    }
+
+    setUpdatingSecurity(true);
+    try {
+      const payload = {
+        currentPassword,
+        newEmail: adminEmail,
+        newPassword: newPassword || undefined
+      };
+
+      const res = await fetch('/api/admin/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        showToast('Security settings updated successfully ✅', 'success');
+        setCurrentPassword("");
+        setNewPassword("");
+        if (data.emailChanged) {
+          showToast('Email changed! Please login again.', 'success');
+          setTimeout(() => router.push('/admin/login'), 2000);
+        } else {
+          fetchSettings();
+        }
+      } else {
+        showToast(data.error || 'Failed to update security settings', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update security settings', 'error');
+    } finally {
+      setUpdatingSecurity(false);
     }
   };
 
@@ -219,13 +277,24 @@ export default function AdminSettingsPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>TRC20 QR Code URL</label>
+                <label className={styles.formLabel}>TRC20 QR Code</label>
+                {trc20QrUrl && (
+                  <div style={{ marginBottom: "10px" }}>
+                    <img src={trc20QrUrl} alt="TRC20 QR" style={{ maxWidth: "150px", borderRadius: "8px" }} />
+                  </div>
+                )}
                 <input 
-                  type="text" 
-                  value={trc20QrUrl} 
-                  onChange={(e) => setTrc20QrUrl(e.target.value)} 
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setTrc20QrUrl(reader.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
                   className={styles.formInput}
-                  placeholder="e.g. images/trc20.png or https://..."
                 />
               </div>
 
@@ -241,13 +310,24 @@ export default function AdminSettingsPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>ERC20 QR Code URL</label>
+                <label className={styles.formLabel}>ERC20 QR Code</label>
+                {erc20QrUrl && (
+                  <div style={{ marginBottom: "10px" }}>
+                    <img src={erc20QrUrl} alt="ERC20 QR" style={{ maxWidth: "150px", borderRadius: "8px" }} />
+                  </div>
+                )}
                 <input 
-                  type="text" 
-                  value={erc20QrUrl} 
-                  onChange={(e) => setErc20QrUrl(e.target.value)} 
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setErc20QrUrl(reader.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
                   className={styles.formInput}
-                  placeholder="e.g. images/erc20.png or https://..."
                 />
               </div>
 
@@ -265,9 +345,54 @@ export default function AdminSettingsPage() {
           )}
 
           {activeTab === 'security' && (
-            <div style={{ padding: "20px", textAlign: "center", color: "#6b7280" }}>
-              <i className="fas fa-lock" style={{ fontSize: "48px", marginBottom: "16px", color: "#d1d5db" }}></i>
-              <p>Security settings are coming soon.</p>
+            <div style={{ maxWidth: "600px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px", color: "#111827" }}>Admin Credentials</h3>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Admin Email</label>
+                <input 
+                  type="email" 
+                  value={adminEmail} 
+                  onChange={(e) => setAdminEmail(e.target.value)} 
+                  className={styles.formInput}
+                  placeholder="admin@example.com"
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>New Password (Optional)</label>
+                <input 
+                  type="password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                  className={styles.formInput}
+                  placeholder="Leave blank to keep current password"
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>Must be at least 8 characters</p>
+              </div>
+
+              <div className={styles.formGroup} style={{ marginTop: "24px" }}>
+                <label className={styles.formLabel} style={{ color: "#b91c1c" }}>Current Password (Required to save changes)</label>
+                <input 
+                  type="password" 
+                  value={currentPassword} 
+                  onChange={(e) => setCurrentPassword(e.target.value)} 
+                  className={styles.formInput}
+                  placeholder="Enter your current password to confirm"
+                  style={{ border: "1px solid #fca5a5", backgroundColor: "#fef2f2" }}
+                />
+              </div>
+
+              <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
+                <button 
+                  onClick={handleUpdateSecurity} 
+                  disabled={updatingSecurity || !currentPassword}
+                  className={styles.viewAllBtn}
+                  style={{ padding: "10px 20px", fontSize: "14px", backgroundColor: currentPassword ? "#2563eb" : "#9ca3af" }}
+                >
+                  {updatingSecurity ? 'Updating...' : 'Update Security Settings'}
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
-import jwt from "jsonwebtoken";
+  import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+if (!JWT_SECRET) console.warn("⚠️ ADMIN_JWT_SECRET is not set!");
 
 export function verifyAdminToken(req) {
   const authHeader = req.headers.authorization;

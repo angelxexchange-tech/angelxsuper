@@ -9,7 +9,7 @@ export async function GET(req) {
 
     if (!token) return NextResponse.json({ valid: false }, { status: 401 });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
 
     await dbConnect();
     const admin = await Admin.findById(decoded.id);

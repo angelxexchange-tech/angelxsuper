@@ -5,8 +5,8 @@ import Admin from "@/lib/models/Admin";
 import { NextResponse } from "next/server";
 
 // Ensure JWT secret exists
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) console.warn("⚠️ JWT_SECRET is not set! Admin login will fail.");
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+if (!JWT_SECRET) console.warn("⚠️ ADMIN_JWT_SECRET is not set! Admin login will fail.");
 
 export async function POST(req) {
   try {
