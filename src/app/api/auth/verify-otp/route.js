@@ -8,6 +8,7 @@ export async function POST(req) {
     const body = await req.json();
     const email = body.email?.toString().trim();
     const otp = body.otp?.toString().trim();
+    const referralCode = body.referralCode?.toString().trim() || null;
 
     if (!email || !otp) {
       return new Response(JSON.stringify({ error: 'Email and OTP are required' }), { status: 400 });
@@ -49,6 +50,15 @@ export async function POST(req) {
       console.log(`Wallet created for userId: ${user._id}`);
     }
 
+    // Apply referral code for new users (no profile completed yet, no existing referrer)
+    if (referralCode && !user.referredBy && !user.fullName && !user.mobile) {
+      const referrer = await User.findOne({ referralCode });
+      if (referrer && referrer._id.toString() !== user._id.toString()) {
+        await User.updateOne({ _id: user._id }, { $set: { referredBy: referrer._id } });
+        console.log(`User ${user.email} referred by ${referrer.email} (code: ${referralCode})`);
+      }
+    }
+
     // Redirect logic: if profile is complete (fullName and mobile) go to home, else complete profile
     const redirectTo = user.fullName && user.mobile ? '/home' : '/complete-profile';
 
@@ -69,3 +79,4 @@ export async function POST(req) {
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 });
   }
 }
+

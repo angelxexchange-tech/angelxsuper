@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db";
 import Transaction from "@/lib/models/Transaction";
 import Wallet from "@/lib/models/Wallet";
 import { verifyAdminCookie } from "@/lib/adminAuth";
+import { distributeReferralCommission } from "@/lib/referralCommission";
 
 export async function POST(req) {
   try {
@@ -40,9 +41,13 @@ export async function POST(req) {
     tx.status = "SUCCESS";
     await tx.save();
 
+    // Distribute referral commissions
+    await distributeReferralCommission(tx.userId, tx._id, tx.amount);
+
     return NextResponse.json({ success: true, wallet });
   } catch (err) {
     console.error("Admin confirm error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+

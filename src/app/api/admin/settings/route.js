@@ -31,7 +31,12 @@ export async function GET(req) {
       trc20Address: "",
       erc20Address: "",
       trc20QrUrl: "",
-      erc20QrUrl: ""
+      erc20QrUrl: "",
+      referralLevel1: 0.1,
+      referralLevel2: 0.03,
+      referralLevel3: 0.02,
+      referralLevel4: 0.01,
+      referralLevel5: 0.01
     };
 
     return NextResponse.json({ settings });
@@ -50,7 +55,9 @@ export async function POST(req) {
     const { 
       rate, depositMin, withdrawMin,
       trc20Address, erc20Address,
-      trc20QrUrl, erc20QrUrl
+      trc20QrUrl, erc20QrUrl,
+      referralLevel1, referralLevel2, referralLevel3,
+      referralLevel4, referralLevel5
     } = body;
 
     console.log('Received POST payload:', body);
@@ -80,7 +87,12 @@ export async function POST(req) {
       trc20Address: String(trc20Address || "").trim(),
       erc20Address: String(erc20Address || "").trim(),
       trc20QrUrl: String(trc20QrUrl || "").trim(),
-      erc20QrUrl: String(erc20QrUrl || "").trim()
+      erc20QrUrl: String(erc20QrUrl || "").trim(),
+      referralLevel1: parseFloat(referralLevel1) || 0,
+      referralLevel2: parseFloat(referralLevel2) || 0,
+      referralLevel3: parseFloat(referralLevel3) || 0,
+      referralLevel4: parseFloat(referralLevel4) || 0,
+      referralLevel5: parseFloat(referralLevel5) || 0
     };
 
     console.log('Sending to Mongoose:', updateData);

@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/mailer';
 import crypto from 'crypto';
 
 const generateOtp = () => crypto.randomInt(1000, 9999).toString();
+const generateReferralCode = () => crypto.randomBytes(4).toString('hex').toUpperCase();
 
 export async function POST(req) {
   try {
@@ -17,12 +18,30 @@ export async function POST(req) {
 
     await dbConnect();
 
-    // Upsert user safely for serverless
-    await User.findOneAndUpdate(
-      { email },
-      { $set: { otp, otpExpiry } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    // Check if user already exists (to know if we need a referral code)
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      // Existing user — just update OTP
+      await User.updateOne({ email }, { $set: { otp, otpExpiry } });
+
+      // Backfill referralCode if missing (for users created before referral system)
+      if (!existingUser.referralCode) {
+        let code = generateReferralCode();
+        // Ensure uniqueness
+        while (await User.findOne({ referralCode: code })) {
+          code = generateReferralCode();
+        }
+        await User.updateOne({ email }, { $set: { referralCode: code } });
+      }
+    } else {
+      // New user — create with referral code
+      let referralCode = generateReferralCode();
+      while (await User.findOne({ referralCode })) {
+        referralCode = generateReferralCode();
+      }
+      await User.create({ email, otp, otpExpiry, referralCode });
+    }
 
     try {
       await sendEmail(email, otp);
@@ -42,3 +61,4 @@ export async function POST(req) {
 export async function GET() {
   return new Response(JSON.stringify({ message: "Use POST to send OTP" }), { status: 200 });
 }
+

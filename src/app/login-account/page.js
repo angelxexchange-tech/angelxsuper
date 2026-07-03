@@ -1,11 +1,12 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/app/components/ToastProvider';
 
 export default function LoginAccount() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -36,6 +37,14 @@ export default function LoginAccount() {
       return () => clearTimeout(timer);
     }
   }, [error, message]);
+
+  // Capture referral code from URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      localStorage.setItem('referralCode', refCode);
+    }
+  }, [searchParams]);
 
   // Load saved email + OTP cooldown
   useEffect(() => {
@@ -123,10 +132,11 @@ export default function LoginAccount() {
     setLoadingVerify(true);
 
     try {
+      const savedRefCode = localStorage.getItem('referralCode') || null;
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), otp }),
+        body: JSON.stringify({ email: email.trim(), otp, referralCode: savedRefCode }),
       });
 
       const data = await res.json();
@@ -135,6 +145,8 @@ export default function LoginAccount() {
         if (data.token) {
           localStorage.setItem('token', data.token);
         }
+        // Clear referral code after successful login
+        localStorage.removeItem('referralCode');
 
         setMessage('OTP verified! Logging In...');
         setTimeout(() => {

@@ -15,6 +15,13 @@ export default function AdminSettingsPage() {
   const [trc20QrUrl, setTrc20QrUrl] = useState("");
   const [erc20QrUrl, setErc20QrUrl] = useState("");
 
+  // Referral Settings
+  const [referralLevel1, setReferralLevel1] = useState(0.1);
+  const [referralLevel2, setReferralLevel2] = useState(0.03);
+  const [referralLevel3, setReferralLevel3] = useState(0.02);
+  const [referralLevel4, setReferralLevel4] = useState(0.01);
+  const [referralLevel5, setReferralLevel5] = useState(0.01);
+
   // Security Settings
   const [adminEmail, setAdminEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -51,6 +58,11 @@ export default function AdminSettingsPage() {
         setErc20Address(settingsData.settings.erc20Address || "");
         setTrc20QrUrl(settingsData.settings.trc20QrUrl || "");
         setErc20QrUrl(settingsData.settings.erc20QrUrl || "");
+        if (settingsData.settings.referralLevel1 !== undefined) setReferralLevel1(settingsData.settings.referralLevel1);
+        if (settingsData.settings.referralLevel2 !== undefined) setReferralLevel2(settingsData.settings.referralLevel2);
+        if (settingsData.settings.referralLevel3 !== undefined) setReferralLevel3(settingsData.settings.referralLevel3);
+        if (settingsData.settings.referralLevel4 !== undefined) setReferralLevel4(settingsData.settings.referralLevel4);
+        if (settingsData.settings.referralLevel5 !== undefined) setReferralLevel5(settingsData.settings.referralLevel5);
       }
 
       const profileData = await profileRes.json();
@@ -82,7 +94,12 @@ export default function AdminSettingsPage() {
         trc20Address: trc20Address || "",
         erc20Address: erc20Address || "",
         trc20QrUrl: trc20QrUrl || "",
-        erc20QrUrl: erc20QrUrl || ""
+        erc20QrUrl: erc20QrUrl || "",
+        referralLevel1: parseFloat(referralLevel1) || 0,
+        referralLevel2: parseFloat(referralLevel2) || 0,
+        referralLevel3: parseFloat(referralLevel3) || 0,
+        referralLevel4: parseFloat(referralLevel4) || 0,
+        referralLevel5: parseFloat(referralLevel5) || 0
       };
 
       const res = await fetch('/api/admin/settings', {
@@ -201,6 +218,20 @@ export default function AdminSettingsPage() {
               }}
             >
               Security
+            </button>
+            <button 
+              onClick={() => setActiveTab('referral')}
+              style={{ 
+                padding: "16px 24px", 
+                fontWeight: 500, 
+                color: activeTab === 'referral' ? "#2563eb" : "#4b5563", 
+                borderBottom: activeTab === 'referral' ? "2px solid #2563eb" : "none",
+                background: "none",
+                border: "none",
+                cursor: "pointer"
+              }}
+            >
+              Referral
             </button>
           </div>
         </div>
@@ -391,6 +422,89 @@ export default function AdminSettingsPage() {
                   style={{ padding: "10px 20px", fontSize: "14px", backgroundColor: currentPassword ? "#2563eb" : "#9ca3af" }}
                 >
                   {updatingSecurity ? 'Updating...' : 'Update Security Settings'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'referral' && (
+            <div style={{ maxWidth: "600px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px", color: "#111827" }}>Referral Commission Rates</h3>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>Set the commission percentage each referral level earns when their subordinate completes a transaction.</p>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>🥇 Level 1 Commission (%)</label>
+                <input 
+                  type="number" 
+                  value={referralLevel1} 
+                  onChange={(e) => setReferralLevel1(e.target.value)} 
+                  className={styles.formInput}
+                  step="0.01"
+                  min="0"
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>Direct referrer (1st level upline)</p>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>🥈 Level 2 Commission (%)</label>
+                <input 
+                  type="number" 
+                  value={referralLevel2} 
+                  onChange={(e) => setReferralLevel2(e.target.value)} 
+                  className={styles.formInput}
+                  step="0.01"
+                  min="0"
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>2nd level upline</p>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>🥉 Level 3 Commission (%)</label>
+                <input 
+                  type="number" 
+                  value={referralLevel3} 
+                  onChange={(e) => setReferralLevel3(e.target.value)} 
+                  className={styles.formInput}
+                  step="0.01"
+                  min="0"
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>3rd level upline</p>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>4️⃣ Level 4 Commission (%)</label>
+                <input 
+                  type="number" 
+                  value={referralLevel4} 
+                  onChange={(e) => setReferralLevel4(e.target.value)} 
+                  className={styles.formInput}
+                  step="0.01"
+                  min="0"
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>4th level upline</p>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>5️⃣ Level 5 Commission (%)</label>
+                <input 
+                  type="number" 
+                  value={referralLevel5} 
+                  onChange={(e) => setReferralLevel5(e.target.value)} 
+                  className={styles.formInput}
+                  step="0.01"
+                  min="0"
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 4 }}>5th level upline</p>
+              </div>
+
+              <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
+                <button 
+                  onClick={handleSave} 
+                  disabled={saving}
+                  className={styles.viewAllBtn}
+                  style={{ padding: "10px 20px", fontSize: "14px" }}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>

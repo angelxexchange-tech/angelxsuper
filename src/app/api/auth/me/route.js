@@ -42,6 +42,7 @@ export async function GET(req) {
           email: user.email,
           fullName: user.fullName,
           mobile: user.mobile,
+          referralCode: user.referralCode || null,
           wallet: {
             total: wallet.usdtDeposited,
             available: wallet.usdtAvailable,
