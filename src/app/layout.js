@@ -16,22 +16,18 @@ export const metadata = {
   title: "AngelX Super",
   description: "AngelX is the most trustable exchange partner. Exchange more, earn more!",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/image/logo-icon.png",
+  },
+  verification: {
+    google: "WJJgbZoAjQ2OYURThYg5MzQzF8ZIpJwIfitC2E_t6Fg",
+  }
 };
 
 export default function Layout({ children }) {
   return (
     <html lang="en">
       <head>
-        {/* PWA */}
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" type="image/x-icon" href="/image/logo-icon.png" />
-
-        {/* Google Search Console */}
-        <meta
-          name="google-site-verification"
-          content="WJJgbZoAjQ2OYURThYg5MzQzF8ZIpJwIfitC2E_t6Fg"
-        />
-
         {/* Fonts */}
         <link
           href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
@@ -48,7 +44,9 @@ export default function Layout({ children }) {
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
         <link rel="stylesheet" href="/css/style.css" type="text/css" />
+      </head>
 
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {/* Google Ads + GA4 */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17922858127"
@@ -64,9 +62,8 @@ export default function Layout({ children }) {
             gtag('config', 'G-SGHVYRBG7S');
           `}
         </Script>
-      </head>
 
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+
         <LayoutClient>{children}</LayoutClient>
 
         {/* JS Libraries */}
