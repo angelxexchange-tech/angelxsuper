@@ -9,6 +9,16 @@ import AdminSettingsPage from "../settings/page";
 import AdminProfilePage from "../profile/page";
 import AdminTransactionsPage from "../transactions/page";
 
+const NAV_ITEMS = [
+  { id: "dashboard",    label: "Dashboard",     icon: "fas fa-th-large",      group: "main" },
+  { id: "users",        label: "Users",          icon: "fas fa-users",          group: "main" },
+  { id: "deposits",     label: "Deposits",       icon: "fas fa-wallet",         group: "operations" },
+  { id: "withdrawals",  label: "Withdrawals",    icon: "fas fa-exchange-alt",   group: "operations" },
+  { id: "transactions", label: "Transactions",   icon: "fas fa-list-alt",       group: "operations" },
+  { id: "settings",     label: "Settings",       icon: "fas fa-sliders-h",      group: "system" },
+  { id: "profile",      label: "My Profile",     icon: "fas fa-user-shield",    group: "system" },
+];
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -51,185 +61,394 @@ export default function AdminDashboard() {
     }
   };
 
-  if (loading) return <div className={styles.loadingState}><i className="fas fa-spinner fa-spin"></i> Loading dashboard...</div>;
+  const navigate = (pageId) => {
+    setActivePage(pageId);
+    setIsMobileMenuOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#0b0d14",
+        gap: "16px",
+        fontFamily: "'Inter', sans-serif",
+      }}>
+        <div style={{
+          width: "48px",
+          height: "48px",
+          border: "3px solid rgba(99, 102, 241, 0.2)",
+          borderTopColor: "#6366f1",
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite",
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <span style={{ color: "#636b80", fontSize: "14px", fontWeight: 500 }}>
+          Loading dashboard...
+        </span>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (activePage) {
       case "dashboard":
-        return (
-          <>
-            <div className={styles.pageHeader}>
-              <h2 className={styles.pageTitle}>Dashboard Overview</h2>
-              <p className={styles.pageSubtitle}>Welcome back, here's what's happening today.</p>
-            </div>
-
-            <div className={styles.statsGrid}>
-              <div className={styles.statCard}>
-                <div className={styles.statHeader}>
-                  <div className={`${styles.iconWrapper} ${styles.iconBlue}`}>
-                    <i className="fas fa-exchange-alt"></i>
-                  </div>
-                  <span className={styles.statLabel}>Pending Sells</span>
-                </div>
-                <div className={styles.statValue}>{stats.sells}</div>
-                <div className={styles.statTrend}>
-                  <span className={styles.trendLabel}>Requests waiting</span>
-                </div>
-              </div>
-
-              <div className={styles.statCard}>
-                <div className={styles.statHeader}>
-                  <div className={`${styles.iconWrapper} ${styles.iconGreen}`}>
-                    <i className="fas fa-wallet"></i>
-                  </div>
-                  <span className={styles.statLabel}>Pending Deposits</span>
-                </div>
-                <div className={styles.statValue}>{stats.deposits}</div>
-                <div className={styles.statTrend}>
-                  <span className={styles.trendLabel}>Requests waiting</span>
-                </div>
-              </div>
-
-              <div className={styles.statCard}>
-                <div className={styles.statHeader}>
-                  <div className={`${styles.iconWrapper} ${styles.iconPurple}`}>
-                    <i className="fas fa-users"></i>
-                  </div>
-                  <span className={styles.statLabel}>Total Users</span>
-                </div>
-                <div className={styles.statValue}>{stats.users}</div>
-                <div className={styles.statTrend}>
-                  <span className={styles.trendLabel}>Registered users</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.dashboardGrid}>
-              <div className={styles.sectionCard}>
-                <div className={styles.cardHeader}>
-                  <h3 className={styles.cardTitle}>Recent Activities</h3>
-                  <button className={styles.viewAllBtn} onClick={() => setActivePage('transactions')}>View All</button>
-                </div>
-                <div className={styles.activityList}>
-                  {stats.recentActivity && stats.recentActivity.length > 0 ? (
-                    stats.recentActivity.map((txn) => (
-                      <div key={txn.id} className={styles.activityItem}>
-                        <div className={styles.activityIcon}>
-                          <i className={`fas ${txn.type === 'DEPOSIT' ? 'fa-wallet' : 'fa-exchange-alt'}`} style={{ color: txn.type === 'DEPOSIT' ? '#10b981' : '#f59e0b' }}></i>
-                        </div>
-                        <div className={styles.activityContent}>
-                          <div className={styles.activityTitle}>{txn.type} - {txn.status}</div>
-                          <div className={styles.activityDesc}>{txn.amount} {txn.currency} by {txn.user?.fullName || txn.user?.email || 'User'}</div>
-                          <div className={styles.activityTime}>{new Date(txn.createdAt).toLocaleString()}</div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>No recent activity</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        );
-      case "users":
-        return <Users />;
-      case "deposits":
-        return <AdminDepositsPage />;
-      case "withdrawals":
-        return <AdminSellingRequests />;
-      case "settings":
-        return <AdminSettingsPage />;
-      case "profile":
-        return <AdminProfilePage />;
-      case "transactions":
-        return <AdminTransactionsPage />;
-      default:
-        return null;
+        return <DashboardHome stats={stats} onNavigate={navigate} adminEmail={adminEmail} />;
+      case "users":        return <Users />;
+      case "deposits":     return <AdminDepositsPage />;
+      case "withdrawals":  return <AdminSellingRequests />;
+      case "settings":     return <AdminSettingsPage />;
+      case "profile":      return <AdminProfilePage />;
+      case "transactions": return <AdminTransactionsPage />;
+      default:             return null;
     }
   };
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: "fas fa-th-large" },
-    { id: "users", label: "Users", icon: "fas fa-users" },
-    { id: "deposits", label: "Deposits", icon: "fas fa-wallet" },
-    { id: "withdrawals", label: "Withdrawals", icon: "fas fa-exchange-alt" },
-    { id: "transactions", label: "Transactions", icon: "fas fa-list" },
-    { id: "settings", label: "Settings", icon: "fas fa-cog" },
-    { id: "profile", label: "Profile", icon: "fas fa-user-circle" },
+  const groupedNav = [
+    { label: "Main",       items: NAV_ITEMS.filter(n => n.group === "main") },
+    { label: "Operations", items: NAV_ITEMS.filter(n => n.group === "operations") },
+    { label: "System",     items: NAV_ITEMS.filter(n => n.group === "system") },
   ];
+
+  const adminInitial = adminEmail.charAt(0).toUpperCase();
 
   return (
     <div className={styles.adminShell}>
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
-          className={styles.sidebarOverlay} 
+        <div
+          className={styles.sidebarOverlay}
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
-      {/* Top Navigation Bar */}
+      {/* ── Top Bar ── */}
       <header className={styles.topBar}>
         <div className={styles.brand}>
-          <button 
-            className={styles.mobileMenuBtn} 
+          <button
+            className={styles.mobileMenuBtn}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle sidebar"
           >
-            <i className="fas fa-bars"></i>
+            <i className="fas fa-bars" />
           </button>
           <div className={styles.brandIcon}>
-            <i className="fas fa-bolt"></i>
+            <i className="fas fa-bolt" />
           </div>
           <div className={styles.brandText}>AngelX Super</div>
         </div>
-        
-        <button className={styles.userMenuBtn}>
-          <div className={styles.userAvatar}>
-            <i className="fas fa-user"></i>
-          </div>
-          <div style={{ textAlign: 'left' }}>
-            <div className={styles.userName}>{adminEmail}</div>
-            <div style={{ fontSize: '11px', color: '#6b7280' }}>Administrator</div>
-          </div>
-        </button>
-      </header>
 
-      {/* Sidebar */}
-      <aside className={`${styles.adminSidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.mobileSidebarHeader}>
-            <div className={styles.brandText}>Menu</div>
-            <button className={styles.closeSidebarBtn} onClick={() => setIsMobileMenuOpen(false)}>
-                <i className="fas fa-times"></i>
-            </button>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-          {navItems.map((item) => (
-            <div
-              key={item.id}
-              className={`${styles.navItem} ${activePage === item.id ? styles.active : ''}`}
-              onClick={() => {
-                setActivePage(item.id);
-                setIsMobileMenuOpen(false);
+        <div className={styles.topBarRight}>
+          {/* Pending indicators */}
+          {stats.deposits > 0 && (
+            <button
+              onClick={() => navigate('deposits')}
+              title={`${stats.deposits} pending deposits`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "rgba(245, 158, 11, 0.1)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                borderRadius: "8px",
+                color: "#f59e0b",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'Inter', sans-serif",
               }}
             >
-              <span className={styles.navIcon}><i className={item.icon}></i></span>
-              <span>{item.label}</span>
-            </div>
-          ))}
-        </div>
+              <i className="fas fa-wallet" style={{ fontSize: "11px" }} />
+              {stats.deposits}
+            </button>
+          )}
+          {stats.sells > 0 && (
+            <button
+              onClick={() => navigate('withdrawals')}
+              title={`${stats.sells} pending withdrawals`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "rgba(99, 102, 241, 0.1)",
+                border: "1px solid rgba(99, 102, 241, 0.25)",
+                borderRadius: "8px",
+                color: "#818cf8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              <i className="fas fa-exchange-alt" style={{ fontSize: "11px" }} />
+              {stats.sells}
+            </button>
+          )}
 
-        <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
-          <button className={styles.logoutBtn} onClick={handleLogout}>
-            <i className="fas fa-sign-out-alt"></i> Logout
+          <button className={styles.userMenuBtn} onClick={() => navigate("profile")}>
+            <div className={styles.userAvatar}>{adminInitial}</div>
+            <div>
+              <div className={styles.userName}>{adminEmail}</div>
+              <div className={styles.userRole}>Administrator</div>
+            </div>
           </button>
         </div>
+      </header>
+
+      {/* ── Sidebar ── */}
+      <aside className={`${styles.adminSidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
+        {/* Mobile header */}
+        <div className={styles.mobileSidebarHeader}>
+          <div className={styles.brand} style={{ gap: "8px" }}>
+            <div className={styles.brandIcon} style={{ width: "28px", height: "28px", fontSize: "12px" }}>
+              <i className="fas fa-bolt" />
+            </div>
+            <div className={styles.brandText}>AngelX Super</div>
+          </div>
+          <button className={styles.closeSidebarBtn} onClick={() => setIsMobileMenuOpen(false)}>
+            <i className="fas fa-times" />
+          </button>
+        </div>
+
+        {/* Navigation groups */}
+        {groupedNav.map((group) => (
+          <div key={group.label} className={styles.navSection}>
+            <div className={styles.navLabel}>{group.label}</div>
+            {group.items.map((item) => (
+              <div
+                key={item.id}
+                className={`${styles.navItem} ${activePage === item.id ? styles.active : ''}`}
+                onClick={() => navigate(item.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && navigate(item.id)}
+              >
+                <span className={styles.navIcon}>
+                  <i className={item.icon} />
+                </span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        {/* Divider + Logout */}
+        <div className={styles.sidebarDivider} />
+        <button className={styles.logoutBtn} onClick={handleLogout}>
+          <i className="fas fa-sign-out-alt" />
+          Sign Out
+        </button>
       </aside>
 
-      {/* Main Content */}
+      {/* ── Main Content ── */}
       <main className={styles.adminMain}>
         {renderContent()}
       </main>
     </div>
+  );
+}
+
+/* ── Dashboard Home Content ── */
+function DashboardHome({ stats, onNavigate, adminEmail }) {
+  const statCards = [
+    {
+      label: "Pending Sells",
+      value: stats.sells,
+      icon: "fas fa-exchange-alt",
+      iconClass: "iconBlue",
+      desc: "Withdrawal requests",
+      action: () => onNavigate("withdrawals"),
+    },
+    {
+      label: "Pending Deposits",
+      value: stats.deposits,
+      icon: "fas fa-wallet",
+      iconClass: "iconOrange",
+      desc: "Awaiting confirmation",
+      action: () => onNavigate("deposits"),
+    },
+    {
+      label: "Total Users",
+      value: stats.users,
+      icon: "fas fa-users",
+      iconClass: "iconGreen",
+      desc: "Registered accounts",
+      action: () => onNavigate("users"),
+    },
+  ];
+
+  const getHour = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  return (
+    <>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>
+            {getHour()}, {adminEmail.split("@")[0]} 👋
+          </h1>
+          <p className={styles.pageSubtitle}>
+            Here's an overview of your platform today.
+          </p>
+        </div>
+      </div>
+
+      {/* Stat Cards */}
+      <div className={styles.statsGrid}>
+        {statCards.map((card, i) => (
+          <div
+            key={i}
+            className={styles.statCard}
+            onClick={card.action}
+            style={{ cursor: "pointer" }}
+          >
+            <div className={styles.statHeader}>
+              <div className={`${styles.iconWrapper} ${styles[card.iconClass]}`}>
+                <i className={card.icon} />
+              </div>
+              <div>
+                <div className={styles.statLabel}>{card.label}</div>
+              </div>
+            </div>
+            <div className={styles.statValue}>{card.value}</div>
+            <div className={styles.statTrend}>
+              <span className={styles.trendLabel}>{card.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent Activity */}
+      <div className={styles.dashboardGrid}>
+        <div className={styles.sectionCard}>
+          <div className={styles.cardHeader}>
+            <h3 className={styles.cardTitle}>
+              <i className="fas fa-activity" style={{ color: "#6366f1", marginRight: "8px" }} />
+              Recent Activity
+            </h3>
+            <button className={styles.viewAllBtn} onClick={() => onNavigate("transactions")}>
+              View All <i className="fas fa-arrow-right" style={{ fontSize: "10px" }} />
+            </button>
+          </div>
+
+          <div className={styles.activityList}>
+            {stats.recentActivity && stats.recentActivity.length > 0 ? (
+              stats.recentActivity.map((txn) => {
+                const isDeposit = txn.type === "DEPOSIT";
+                const iconColor = isDeposit ? "#22c55e" : "#f59e0b";
+                const icon = isDeposit ? "fa-wallet" : "fa-exchange-alt";
+                const statusClass = txn.status === "COMPLETED"
+                  ? styles.badgeGreen
+                  : txn.status === "PENDING"
+                  ? styles.badgeYellow
+                  : styles.badgeRed;
+
+                return (
+                  <div key={txn.id} className={styles.activityItem}>
+                    <div className={styles.activityIcon} style={{ color: iconColor }}>
+                      <i className={`fas ${icon}`} />
+                    </div>
+                    <div className={styles.activityContent}>
+                      <div className={styles.activityTitle}>
+                        {txn.type}
+                        <span
+                          className={`${styles.badge} ${statusClass}`}
+                          style={{ marginLeft: "8px", fontSize: "10px" }}
+                        >
+                          {txn.status}
+                        </span>
+                      </div>
+                      <div className={styles.activityDesc}>
+                        <strong style={{ color: "#a0aec0" }}>${txn.amount} {txn.currency}</strong>
+                        {" · "}
+                        {txn.user?.fullName || txn.user?.email || "User"}
+                      </div>
+                      <div className={styles.activityTime}>
+                        <i className="fas fa-clock" style={{ marginRight: "4px", fontSize: "10px" }} />
+                        {new Date(txn.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>
+                  <i className="fas fa-inbox" />
+                </div>
+                <div className={styles.emptyTitle}>No recent activity</div>
+                <div className={styles.emptyDesc}>Transactions will appear here as they come in</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className={styles.sectionCard}>
+        <div className={styles.cardHeader}>
+          <h3 className={styles.cardTitle}>
+            <i className="fas fa-bolt" style={{ color: "#f59e0b", marginRight: "8px" }} />
+            Quick Actions
+          </h3>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexWrap: "wrap", gap: "12px" }}>
+          {[
+            { label: "Approve Deposits",    icon: "fas fa-check-circle",  page: "deposits",     color: "#22c55e" },
+            { label: "Review Withdrawals",  icon: "fas fa-exchange-alt",  page: "withdrawals",  color: "#6366f1" },
+            { label: "Manage Users",        icon: "fas fa-users",         page: "users",        color: "#38bdf8" },
+            { label: "All Transactions",    icon: "fas fa-list-alt",      page: "transactions", color: "#a855f7" },
+          ].map((a) => (
+            <button
+              key={a.page}
+              onClick={() => onNavigate(a.page)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "12px 20px",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: "12px",
+                color: "#a0aec0",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'Inter', sans-serif",
+                flex: "1 1 auto",
+                minWidth: "160px",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${a.color}18`;
+                e.currentTarget.style.borderColor = `${a.color}40`;
+                e.currentTarget.style.color = a.color;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+                e.currentTarget.style.color = "#a0aec0";
+              }}
+            >
+              <i className={a.icon} style={{ color: a.color, fontSize: "16px" }} />
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

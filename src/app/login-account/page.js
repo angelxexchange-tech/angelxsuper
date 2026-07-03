@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/app/components/ToastProvider';
 
-export default function LoginAccount() {
+function LoginAccountContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -246,11 +246,10 @@ export default function LoginAccount() {
   );
 }
 
-
-
-
-
-
-
-
-
+export default function LoginAccount() {
+  return (
+    <Suspense fallback={<div style={{height: "100vh", display: "flex", alignItems: "center", justifyContent: "center"}}>Loading...</div>}>
+      <LoginAccountContent />
+    </Suspense>
+  );
+}
