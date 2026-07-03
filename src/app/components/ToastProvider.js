@@ -1,5 +1,6 @@
 "use client";
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useCallback } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 const ToastContext = createContext(null);
 
@@ -8,26 +9,41 @@ export function useToast() {
 }
 
 export default function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-
-  const showToast = useCallback((message, type = "info", ttl = 4000) => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((t) => t.filter((x) => x.id !== id));
-    }, ttl);
+  const showToast = useCallback((message, type = "info") => {
+    if (type === "success") {
+      toast.success(message);
+    } else if (type === "error") {
+      toast.error(message);
+    } else {
+      toast(message);
+    }
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999 }}>
-        {toasts.map((t) => (
-          <div key={t.id} style={{ marginBottom: 12, padding: "14px 16px", borderRadius: 8, color: "#fff", background: t.type === "error" ? "#ef4444" : t.type === "success" ? "#10b981" : "#1a1d23", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", minWidth: 280, maxWidth: 400, fontWeight: 600, fontSize: 14 }}>
-            {t.message}
-          </div>
-        ))}
-      </div>
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          style: {
+            background: '#13151f',
+            color: '#f0f2ff',
+            border: '1px solid rgba(255, 255, 255, 0.07)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#13151f',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#13151f',
+            },
+          },
+        }}
+      />
     </ToastContext.Provider>
   );
 }

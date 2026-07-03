@@ -10,6 +10,11 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Block moderators from dashboard stats
+  if (auth.role === 'moderator') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     await dbConnect();
     const [userCount, pendingDeposits, pendingSells, recentTxns] = await Promise.all([

@@ -13,6 +13,7 @@ const SettingsSchema = new mongoose.Schema({
   referralLevel3: { type: Number, default: 0.02 },
   referralLevel4: { type: Number, default: 0.01 },
   referralLevel5: { type: Number, default: 0.01 },
+  moderatorAmountLimit: { type: Number, default: 500 },
 }, { timestamps: true });
 
 export default mongoose.models.Settings || mongoose.model('Settings', SettingsSchema);

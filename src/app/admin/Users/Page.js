@@ -94,7 +94,7 @@ export default function AdminUsersPage() {
             </thead>
             <tbody>
               {filteredUsers.length > 0 ? filteredUsers.map((user) => (
-                <tr key={user.id}>
+                <tr key={user._id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{

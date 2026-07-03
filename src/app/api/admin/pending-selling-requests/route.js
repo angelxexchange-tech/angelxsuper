@@ -1,6 +1,7 @@
 // GET /api/admin/pending-selling-requests
 import dbConnect from "@/lib/db";
 import Transaction from "@/lib/models/Transaction";
+import Settings from "@/lib/models/Settings";
 import User from "@/lib/models/User";
 import { NextResponse } from "next/server";
 import { verifyAdminCookie } from "@/lib/adminAuth";
@@ -11,7 +12,18 @@ export async function GET(req) {
     if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await dbConnect();
-    const requests = await Transaction.find({ status: "PENDING", type: "SELL" })
+
+    // Build filter query
+    const filter = { status: "PENDING", type: "SELL" };
+
+    // If moderator, filter by amount limit
+    if (admin.role === 'moderator') {
+      const settings = await Settings.findOne().lean();
+      const limit = settings?.moderatorAmountLimit || 500;
+      filter.amount = { $lte: limit };
+    }
+
+    const requests = await Transaction.find(filter)
       .populate({
         path: 'userId',
         select: 'email fullName'

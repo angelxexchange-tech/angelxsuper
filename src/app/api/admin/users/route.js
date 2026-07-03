@@ -12,6 +12,11 @@ export async function GET(req) {
     const admin = verifyAdminCookie(req);
     if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Block moderators from user management
+    if (admin.role === 'moderator') {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const url = new URL(req.url);
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
     const pageSize = Math.min(100, Math.max(5, parseInt(url.searchParams.get('pageSize') || '20')));

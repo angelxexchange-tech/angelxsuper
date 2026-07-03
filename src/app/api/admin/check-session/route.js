@@ -15,7 +15,7 @@ export async function GET(req) {
     const admin = await Admin.findById(decoded.id);
     if (!admin) return NextResponse.json({ valid: false }, { status: 401 });
 
-    return NextResponse.json({ valid: true, email: admin.email });
+    return NextResponse.json({ valid: true, email: admin.email, role: admin.role || 'admin' });
   } catch (err) {
     return NextResponse.json({ valid: false }, { status: 401 });
   }

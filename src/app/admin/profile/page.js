@@ -8,6 +8,7 @@ export default function AdminProfilePage() {
   const { showToast } = useToast();
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState('admin');
   const [loading, setLoading] = useState(true);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -26,7 +27,10 @@ export default function AdminProfilePage() {
         return;
       }
       const data = await res.json();
-      if (data.admin) setEmail(data.admin.email);
+      if (data.admin) {
+        setEmail(data.admin.email);
+        setRole(data.admin.role || 'admin');
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -36,16 +40,21 @@ export default function AdminProfilePage() {
 
   const handleSave = async () => {
     if (!currentPassword) return showToast('Current password is required', 'error');
+    if (!newPassword) return showToast('New password is required', 'error');
+    if (newPassword.length < 8) return showToast('New password must be at least 8 characters', 'error');
+
     setSaving(true);
     try {
+      const body = { currentPassword, newPassword };
+      // Only admin can change email — moderators send password only
+      if (role === 'admin') {
+        body.newEmail = email || undefined;
+      }
+
       const res = await fetch('/api/admin/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword: newPassword || undefined,
-          newEmail: email || undefined,
-        }),
+        body: JSON.stringify(body),
       });
       if (res.status === 404) {
         showToast('Profile API not implemented yet', 'info');
@@ -54,7 +63,7 @@ export default function AdminProfilePage() {
       }
       const data = await res.json();
       if (res.ok) {
-        showToast('Profile updated ✅', 'success');
+        showToast('Password updated successfully ✅', 'success');
         setCurrentPassword('');
         setNewPassword('');
         if (data.emailChanged) {
@@ -81,22 +90,27 @@ export default function AdminProfilePage() {
   }
 
   const initial = email.charAt(0).toUpperCase();
+  const isModerator = role === 'moderator';
 
   return (
     <>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>My Profile</h1>
-          <p className={styles.pageSubtitle}>Manage your admin account details</p>
+          <p className={styles.pageSubtitle}>
+            {isModerator ? 'Change your account password' : 'Manage your admin account details'}
+          </p>
         </div>
       </div>
 
       <div style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-        {/* Admin Identity Card */}
+        {/* Identity Card */}
         <div className={styles.sectionCard} style={{ overflow: 'hidden' }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%)',
+            background: isModerator 
+              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(234, 179, 8, 0.1) 100%)'
+              : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
             padding: '28px 24px',
             display: 'flex',
@@ -108,7 +122,9 @@ export default function AdminProfilePage() {
               width: '72px',
               height: '72px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: isModerator
+                ? 'linear-gradient(135deg, #f59e0b, #eab308)'
+                : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -116,25 +132,31 @@ export default function AdminProfilePage() {
               fontWeight: 800,
               color: 'white',
               flexShrink: 0,
-              boxShadow: '0 0 20px rgba(99, 102, 241, 0.3)',
+              boxShadow: isModerator
+                ? '0 0 20px rgba(245, 158, 11, 0.3)'
+                : '0 0 20px rgba(99, 102, 241, 0.3)',
             }}>
               {initial}
             </div>
             <div>
               <div style={{ fontSize: '20px', fontWeight: 700, color: '#f0f2ff', marginBottom: '4px' }}>
-                Administrator
+                {isModerator ? 'Moderator' : 'Administrator'}
               </div>
               <div style={{ fontSize: '14px', color: '#a0aec0', marginBottom: '10px' }}>{email}</div>
-              <span className={`${styles.badge} ${styles.badgePurple}`}>
-                <i className="fas fa-shield-alt" style={{ fontSize: '10px' }} />
-                Super Admin
+              <span className={`${styles.badge} ${isModerator ? styles.badgeYellow : styles.badgePurple}`} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}>
+                <i className={isModerator ? 'fas fa-user-check' : 'fas fa-shield-alt'} style={{ fontSize: '10px' }} />
+                {isModerator ? 'Moderator' : 'Super Admin'}
               </span>
             </div>
           </div>
 
           <div style={{ padding: '24px' }}>
             <div className={styles.settingsSectionTitle}>
-              <i className="fas fa-user-edit" style={{ color: '#6366f1' }} />
+              <i className="fas fa-user-edit" style={{ color: isModerator ? '#f59e0b' : '#6366f1' }} />
               Account Information
             </div>
 
@@ -146,11 +168,18 @@ export default function AdminProfilePage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => !isModerator && setEmail(e.target.value)}
                 className={styles.input}
                 placeholder="admin@angelxsuper.com"
+                disabled={isModerator}
+                style={isModerator ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
               />
-              <p className={styles.formHint}>Your admin email for login and notifications</p>
+              {isModerator && (
+                <p className={styles.formHint} style={{ color: '#f59e0b' }}>
+                  <i className="fas fa-lock" style={{ marginRight: '4px', fontSize: '10px' }} />
+                  Email cannot be changed by moderators
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -182,14 +211,14 @@ export default function AdminProfilePage() {
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>
                 <i className="fas fa-key" style={{ marginRight: '6px', color: '#a855f7' }} />
-                New Password <span style={{ color: '#636b80', fontWeight: 400 }}>(Optional)</span>
+                New Password
               </label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className={styles.input}
-                placeholder="Leave blank to keep current password"
+                placeholder="Enter new password (min 8 characters)"
               />
             </div>
 
@@ -202,7 +231,7 @@ export default function AdminProfilePage() {
               >
                 {saving
                   ? <><i className="fas fa-spinner fa-spin" /> Saving...</>
-                  : <><i className="fas fa-save" /> Save Changes</>
+                  : <><i className="fas fa-save" /> Update Password</>
                 }
               </button>
             </div>

@@ -3,19 +3,28 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from '../admin.module.css';
 import AdminDepositsPage from "../deposits/page";
+import CommandMenu from "../components/CommandMenu";
+import ModeratorLogsPage from "../moderator-logs/page";
+import { AnimatePresence, motion } from "framer-motion";
 import AdminSellingRequests from "../Sellings/page";
 import Users from "../Users/Page";
 import AdminSettingsPage from "../settings/page";
 import AdminProfilePage from "../profile/page";
 import AdminTransactionsPage from "../transactions/page";
 
-const NAV_ITEMS = [
+const ADMIN_NAV_ITEMS = [
   { id: "dashboard",    label: "Dashboard",     icon: "fas fa-th-large",      group: "main" },
   { id: "users",        label: "Users",          icon: "fas fa-users",          group: "main" },
   { id: "deposits",     label: "Deposits",       icon: "fas fa-wallet",         group: "operations" },
   { id: "withdrawals",  label: "Withdrawals",    icon: "fas fa-exchange-alt",   group: "operations" },
   { id: "transactions", label: "Transactions",   icon: "fas fa-list-alt",       group: "operations" },
   { id: "settings",     label: "Settings",       icon: "fas fa-sliders-h",      group: "system" },
+  { id: "moderator-logs", label: "Audit Logs",   icon: "fas fa-history",        group: "system" },
+];
+
+const MOD_NAV_ITEMS = [
+  { id: "deposits",     label: "Deposits",       icon: "fas fa-wallet",         group: "operations" },
+  { id: "withdrawals",  label: "Withdrawals",    icon: "fas fa-exchange-alt",   group: "operations" },
   { id: "profile",      label: "My Profile",     icon: "fas fa-user-shield",    group: "system" },
 ];
 
@@ -24,6 +33,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState("dashboard");
   const [adminEmail, setAdminEmail] = useState("Admin");
+  const [adminRole, setAdminRole] = useState("admin");
   const [stats, setStats] = useState({ deposits: 0, sells: 0, users: 0, recentActivity: [] });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -37,11 +47,20 @@ export default function AdminDashboard() {
         }
         const sessionData = await sessionRes.json();
         setAdminEmail(sessionData.email || "Admin");
+        setAdminRole(sessionData.role || "admin");
 
-        const statsRes = await fetch("/api/admin/stats");
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          setStats(statsData);
+        // Set default page based on role
+        if (sessionData.role === 'moderator') {
+          setActivePage("deposits");
+        }
+
+        // Only fetch stats for admin role
+        if (sessionData.role !== 'moderator') {
+          const statsRes = await fetch("/api/admin/stats");
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setStats(statsData);
+          }
         }
         setLoading(false);
       } catch (err) {
@@ -97,24 +116,36 @@ export default function AdminDashboard() {
   const renderContent = () => {
     switch (activePage) {
       case "dashboard":
+        if (adminRole === 'moderator') return <AdminDepositsPage />;
         return <DashboardHome stats={stats} onNavigate={navigate} adminEmail={adminEmail} />;
-      case "users":        return <Users />;
+      case "users":        return adminRole === 'moderator' ? null : <Users />;
       case "deposits":     return <AdminDepositsPage />;
       case "withdrawals":  return <AdminSellingRequests />;
-      case "settings":     return <AdminSettingsPage />;
+      case "settings":     return adminRole === 'moderator' ? null : <AdminSettingsPage />;
       case "profile":      return <AdminProfilePage />;
-      case "transactions": return <AdminTransactionsPage />;
+      case "transactions": return adminRole === 'moderator' ? null : <AdminTransactionsPage />;
+      case "moderator-logs": return adminRole === 'moderator' ? null : <ModeratorLogsPage />;
       default:             return null;
     }
   };
 
-  const groupedNav = [
-    { label: "Main",       items: NAV_ITEMS.filter(n => n.group === "main") },
-    { label: "Operations", items: NAV_ITEMS.filter(n => n.group === "operations") },
-    { label: "System",     items: NAV_ITEMS.filter(n => n.group === "system") },
-  ];
+  const navItems = adminRole === 'moderator' ? MOD_NAV_ITEMS : ADMIN_NAV_ITEMS;
+  const isAdmin = adminRole === 'admin';
+
+  const groupedNav = isAdmin
+    ? [
+        { label: "Main",       items: navItems.filter(n => n.group === "main") },
+        { label: "Operations", items: navItems.filter(n => n.group === "operations") },
+        { label: "System",     items: navItems.filter(n => n.group === "system") },
+      ]
+    : [
+        { label: "Operations", items: navItems.filter(n => n.group === "operations") },
+        { label: "Account",    items: navItems.filter(n => n.group === "system") },
+      ];
 
   const adminInitial = adminEmail.charAt(0).toUpperCase();
+  const roleBadgeColor = isAdmin ? '#6366f1' : '#f59e0b';
+  const roleLabel = isAdmin ? 'Administrator' : 'Moderator';
 
   return (
     <div className={styles.adminShell}>
@@ -143,8 +174,8 @@ export default function AdminDashboard() {
         </div>
 
         <div className={styles.topBarRight}>
-          {/* Pending indicators */}
-          {stats.deposits > 0 && (
+          {/* Pending indicators (admin sees counts, moderator sees them too) */}
+          {stats.deposits > 0 && isAdmin && (
             <button
               onClick={() => navigate('deposits')}
               title={`${stats.deposits} pending deposits`}
@@ -168,7 +199,7 @@ export default function AdminDashboard() {
               {stats.deposits}
             </button>
           )}
-          {stats.sells > 0 && (
+          {stats.sells > 0 && isAdmin && (
             <button
               onClick={() => navigate('withdrawals')}
               title={`${stats.sells} pending withdrawals`}
@@ -193,13 +224,7 @@ export default function AdminDashboard() {
             </button>
           )}
 
-          <button className={styles.userMenuBtn} onClick={() => navigate("profile")}>
-            <div className={styles.userAvatar}>{adminInitial}</div>
-            <div>
-              <div className={styles.userName}>{adminEmail}</div>
-              <div className={styles.userRole}>Administrator</div>
-            </div>
-          </button>
+
         </div>
       </header>
 
@@ -216,6 +241,30 @@ export default function AdminDashboard() {
           <button className={styles.closeSidebarBtn} onClick={() => setIsMobileMenuOpen(false)}>
             <i className="fas fa-times" />
           </button>
+        </div>
+
+        {/* Role badge in sidebar */}
+        <div style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
+            borderRadius: '20px',
+            background: isAdmin ? 'rgba(99, 102, 241, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            border: `1px solid ${isAdmin ? 'rgba(99, 102, 241, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+            fontSize: '11px',
+            fontWeight: 600,
+            color: roleBadgeColor,
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+          }}>
+            <i className={isAdmin ? 'fas fa-shield-alt' : 'fas fa-user-check'} style={{ fontSize: '10px' }} />
+            {roleLabel}
+          </div>
         </div>
 
         {/* Navigation groups */}
@@ -242,6 +291,17 @@ export default function AdminDashboard() {
 
         {/* Divider + Logout */}
         <div className={styles.sidebarDivider} />
+        <button 
+          className={styles.userMenuBtn} 
+          onClick={() => isAdmin ? navigate("settings") : navigate("profile")}
+          style={{ width: '100%', marginBottom: '8px', justifyContent: 'flex-start' }}
+        >
+          <div className={styles.userAvatar}>{adminInitial}</div>
+          <div style={{ textAlign: 'left' }}>
+            <div className={styles.userName}>{adminEmail}</div>
+            <div className={styles.userRole} style={{ color: roleBadgeColor }}>{roleLabel}</div>
+          </div>
+        </button>
         <button className={styles.logoutBtn} onClick={handleLogout}>
           <i className="fas fa-sign-out-alt" />
           Sign Out
@@ -250,13 +310,25 @@ export default function AdminDashboard() {
 
       {/* ── Main Content ── */}
       <main className={styles.adminMain}>
-        {renderContent()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activePage}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </main>
+      
+      <CommandMenu navigate={navigate} isAdmin={isAdmin} />
     </div>
   );
 }
 
-/* ── Dashboard Home Content ── */
+/* ── Dashboard Home Content (Admin only) ── */
 function DashboardHome({ stats, onNavigate, adminEmail }) {
   const statCards = [
     {

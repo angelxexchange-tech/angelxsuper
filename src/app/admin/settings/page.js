@@ -3,18 +3,22 @@ import { useEffect, useState } from 'react';
 import styles from '../admin.module.css';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/components/ToastProvider';
+import { useConfirm } from '@/app/components/ConfirmProvider';
 
 const TABS = [
-  { id: 'general',  label: 'General',   icon: 'fas fa-sliders-h' },
-  { id: 'crypto',   label: 'Crypto',    icon: 'fas fa-coins' },
-  { id: 'referral', label: 'Referral',  icon: 'fas fa-share-alt' },
-  { id: 'security', label: 'Security',  icon: 'fas fa-shield-alt' },
+  { id: 'general',    label: 'General',    icon: 'fas fa-sliders-h' },
+  { id: 'crypto',     label: 'Crypto',     icon: 'fas fa-coins' },
+  { id: 'referral',   label: 'Referral',   icon: 'fas fa-share-alt' },
+  { id: 'security',   label: 'Security',   icon: 'fas fa-shield-alt' },
+  { id: 'moderators', label: 'Moderators', icon: 'fas fa-user-check' },
+  { id: 'modLogs',    label: 'Mod Logs',   icon: 'fas fa-clipboard-list' },
 ];
 
 export default function AdminSettingsPage() {
   const [rate, setRate] = useState(102);
   const [depositMin, setDepositMin] = useState(100);
   const [withdrawMin, setWithdrawMin] = useState(50);
+  const [moderatorAmountLimit, setModeratorAmountLimit] = useState(500);
 
   const [trc20Address, setTrc20Address] = useState('');
   const [erc20Address, setErc20Address] = useState('');
@@ -32,13 +36,32 @@ export default function AdminSettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [updatingSecurity, setUpdatingSecurity] = useState(false);
 
+  // Moderator management
+  const [moderators, setModerators] = useState([]);
+  const [modEmail, setModEmail] = useState('');
+  const [modPassword, setModPassword] = useState('');
+  const [creatingMod, setCreatingMod] = useState(false);
+  const [loadingMods, setLoadingMods] = useState(false);
+
+  // Mod logs
+  const [modLogs, setModLogs] = useState([]);
+  const [modLogsTotal, setModLogsTotal] = useState(0);
+  const [modLogsPage, setModLogsPage] = useState(1);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const router = useRouter();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   useEffect(() => { fetchSettings(); }, []);
+
+  useEffect(() => {
+    if (activeTab === 'moderators') fetchModerators();
+    if (activeTab === 'modLogs') fetchModLogs(1);
+  }, [activeTab]);
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -65,6 +88,7 @@ export default function AdminSettingsPage() {
         if (s.referralLevel3 !== undefined) setReferralLevel3(s.referralLevel3);
         if (s.referralLevel4 !== undefined) setReferralLevel4(s.referralLevel4);
         if (s.referralLevel5 !== undefined) setReferralLevel5(s.referralLevel5);
+        if (s.moderatorAmountLimit !== undefined) setModeratorAmountLimit(s.moderatorAmountLimit);
       }
       const profileData = await profileRes.json();
       if (profileData.success && profileData.admin) {
@@ -74,6 +98,36 @@ export default function AdminSettingsPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchModerators = async () => {
+    setLoadingMods(true);
+    try {
+      const res = await fetch('/api/admin/moderators');
+      const data = await res.json();
+      if (res.ok && data.moderators) setModerators(data.moderators);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMods(false);
+    }
+  };
+
+  const fetchModLogs = async (page = 1) => {
+    setLoadingLogs(true);
+    try {
+      const res = await fetch(`/api/admin/moderator-logs?page=${page}&pageSize=20`);
+      const data = await res.json();
+      if (res.ok) {
+        setModLogs(data.logs || []);
+        setModLogsTotal(data.total || 0);
+        setModLogsPage(page);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingLogs(false);
     }
   };
 
@@ -94,6 +148,7 @@ export default function AdminSettingsPage() {
         referralLevel3: parseFloat(referralLevel3) || 0,
         referralLevel4: parseFloat(referralLevel4) || 0,
         referralLevel5: parseFloat(referralLevel5) || 0,
+        moderatorAmountLimit: parseFloat(moderatorAmountLimit) || 500,
       };
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
@@ -147,6 +202,55 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const handleCreateModerator = async () => {
+    if (!modEmail || !modPassword) {
+      showToast('Email and password are required', 'error');
+      return;
+    }
+    if (modPassword.length < 8) {
+      showToast('Password must be at least 8 characters', 'error');
+      return;
+    }
+    setCreatingMod(true);
+    try {
+      const res = await fetch('/api/admin/moderators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: modEmail, password: modPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Moderator created successfully ✅', 'success');
+        setModEmail('');
+        setModPassword('');
+        fetchModerators();
+      } else {
+        showToast(data.error || 'Failed to create moderator', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to create moderator', 'error');
+    } finally {
+      setCreatingMod(false);
+    }
+  };
+
+  const handleDeleteModerator = async (id, email) => {
+    const ok = await confirm(`Delete moderator "${email}"? This action cannot be undone.`);
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/admin/moderators?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Moderator deleted ✅', 'success');
+        fetchModerators();
+      } else {
+        showToast(data.error || 'Failed to delete moderator', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to delete moderator', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.loadingState}>
@@ -182,7 +286,7 @@ export default function AdminSettingsPage() {
 
       {/* Tab Content */}
       <div className={styles.sectionCard}>
-        <div style={{ padding: '28px 24px', maxWidth: '640px' }}>
+        <div style={{ padding: '28px 24px', maxWidth: activeTab === 'modLogs' ? '100%' : '640px' }}>
 
           {/* ── GENERAL ── */}
           {activeTab === 'general' && (
@@ -238,6 +342,33 @@ export default function AdminSettingsPage() {
                   placeholder="e.g. 50"
                 />
                 <p className={styles.formHint}>Minimum USDT amount users can withdraw</p>
+              </div>
+
+              <div style={{ height: '16px' }} />
+
+              <div className={styles.settingsSectionTitle}>
+                <i className="fas fa-user-check" style={{ color: '#f59e0b' }} />
+                Moderator Settings
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>
+                  <i className="fas fa-dollar-sign" style={{ marginRight: '6px', color: '#f59e0b' }} />
+                  Moderator Amount Limit (USDT)
+                </label>
+                <input
+                  type="number"
+                  value={moderatorAmountLimit}
+                  onChange={(e) => setModeratorAmountLimit(parseFloat(e.target.value) || 0)}
+                  className={styles.input}
+                  step="1"
+                  min="0"
+                  placeholder="e.g. 500"
+                />
+                <p className={styles.formHint}>
+                  Moderators can only view and approve/reject deposits & withdrawals up to this amount.
+                  Transactions above this limit will only be visible to the admin.
+                </p>
               </div>
 
               <SaveBar onSave={handleSave} saving={saving} />
@@ -387,6 +518,302 @@ export default function AdminSettingsPage() {
                   }
                 </button>
               </div>
+            </>
+          )}
+
+          {/* ── MODERATORS ── */}
+          {activeTab === 'moderators' && (
+            <>
+              <div className={styles.settingsSectionTitle}>
+                <i className="fas fa-user-check" style={{ color: '#f59e0b' }} />
+                Moderator Management
+              </div>
+
+              <div className={styles.infoCard}>
+                <i className="fas fa-info-circle" style={{ color: '#38bdf8', flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  Create moderator accounts that can login to the admin panel with limited access. 
+                  Moderators can only view and approve/reject deposits & withdrawals within the configured amount limit.
+                </span>
+              </div>
+
+              {/* Create new moderator */}
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.05)',
+                border: '1px solid rgba(245, 158, 11, 0.15)',
+                borderRadius: '14px',
+                padding: '20px',
+                marginBottom: '24px',
+              }}>
+                <div style={{
+                  fontSize: '14px', fontWeight: 700, color: '#f59e0b',
+                  marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px',
+                }}>
+                  <i className="fas fa-plus-circle" />
+                  Create New Moderator
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>
+                    <i className="fas fa-envelope" style={{ marginRight: '6px', color: '#38bdf8' }} />
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={modEmail}
+                    onChange={(e) => setModEmail(e.target.value)}
+                    className={styles.input}
+                    placeholder="moderator@example.com"
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>
+                    <i className="fas fa-key" style={{ marginRight: '6px', color: '#a855f7' }} />
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={modPassword}
+                    onChange={(e) => setModPassword(e.target.value)}
+                    className={styles.input}
+                    placeholder="Min 8 characters"
+                  />
+                </div>
+
+                <button
+                  onClick={handleCreateModerator}
+                  disabled={creatingMod || !modEmail || !modPassword}
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  style={{ 
+                    opacity: (!modEmail || !modPassword) ? 0.5 : 1,
+                    background: 'linear-gradient(135deg, #f59e0b, #eab308)',
+                  }}
+                >
+                  {creatingMod
+                    ? <><i className="fas fa-spinner fa-spin" /> Creating...</>
+                    : <><i className="fas fa-user-plus" /> Create Moderator</>
+                  }
+                </button>
+              </div>
+
+              {/* Existing moderators list */}
+              <div className={styles.settingsSectionTitle}>
+                <i className="fas fa-users" style={{ color: '#6366f1' }} />
+                Existing Moderators ({moderators.length})
+              </div>
+
+              {loadingMods ? (
+                <div className={styles.loadingState} style={{ padding: '20px' }}>
+                  <div className={styles.spinner} />
+                  Loading...
+                </div>
+              ) : moderators.length === 0 ? (
+                <div style={{
+                  textAlign: 'center', padding: '32px', color: '#636b80',
+                  background: 'rgba(255,255,255,0.02)', borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  <i className="fas fa-user-slash" style={{ fontSize: '32px', marginBottom: '12px', display: 'block', color: '#4a5068' }} />
+                  No moderators created yet
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {moderators.map((mod) => (
+                    <div key={mod._id} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '14px 16px',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                      borderRadius: '12px',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #f59e0b, #eab308)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '14px', fontWeight: 700, color: 'white', flexShrink: 0,
+                        }}>
+                          {mod.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#f0f2ff' }}>{mod.email}</div>
+                          <div style={{ fontSize: '11px', color: '#636b80' }}>
+                            Created: {new Date(mod.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteModerator(mod._id, mod.email)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 14px', background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px',
+                          color: '#f87171', fontSize: '12px', fontWeight: 600,
+                          cursor: 'pointer', transition: 'all 0.2s',
+                          fontFamily: "'Inter', sans-serif",
+                        }}
+                      >
+                        <i className="fas fa-trash-alt" style={{ fontSize: '11px' }} />
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── MOD LOGS ── */}
+          {activeTab === 'modLogs' && (
+            <>
+              <div className={styles.settingsSectionTitle}>
+                <i className="fas fa-clipboard-list" style={{ color: '#a855f7' }} />
+                Moderator Activity Logs
+              </div>
+
+              <div className={styles.infoCard}>
+                <i className="fas fa-info-circle" style={{ color: '#38bdf8', flexShrink: 0, marginTop: '2px' }} />
+                <span>All moderator actions are logged here. Track deposit/withdrawal approvals, rejections, and password changes.</span>
+              </div>
+
+              {loadingLogs ? (
+                <div className={styles.loadingState} style={{ padding: '20px' }}>
+                  <div className={styles.spinner} />
+                  Loading logs...
+                </div>
+              ) : modLogs.length === 0 ? (
+                <div style={{
+                  textAlign: 'center', padding: '40px', color: '#636b80',
+                  background: 'rgba(255,255,255,0.02)', borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  <i className="fas fa-clipboard-check" style={{ fontSize: '36px', marginBottom: '12px', display: 'block', color: '#4a5068' }} />
+                  No moderator activity logged yet
+                </div>
+              ) : (
+                <>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className={styles.table} style={{ minWidth: '700px' }}>
+                      <thead>
+                        <tr>
+                          <th>Moderator</th>
+                          <th>Action</th>
+                          <th>Details</th>
+                          <th>Date & Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {modLogs.map((log, i) => {
+                          const actionColors = {
+                            'CONFIRM_DEPOSIT': { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', icon: 'fa-check-circle' },
+                            'REJECT_DEPOSIT': { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', icon: 'fa-times-circle' },
+                            'CONFIRM_WITHDRAWAL': { bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', icon: 'fa-check-circle' },
+                            'REJECT_WITHDRAWAL': { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', icon: 'fa-times-circle' },
+                            'CHANGE_PASSWORD': { bg: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', icon: 'fa-key' },
+                            'LOGIN': { bg: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', icon: 'fa-sign-in-alt' },
+                          };
+                          const ac = actionColors[log.action] || { bg: 'rgba(255,255,255,0.05)', color: '#a0aec0', icon: 'fa-circle' };
+                          
+                          return (
+                            <tr key={log._id || i}>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{
+                                    width: '28px', height: '28px', borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #f59e0b, #eab308)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0,
+                                  }}>
+                                    {(log.moderatorEmail || '?').charAt(0).toUpperCase()}
+                                  </div>
+                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#f0f2ff' }}>
+                                    {log.moderatorEmail}
+                                  </span>
+                                </div>
+                              </td>
+                              <td>
+                                <span style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                  padding: '3px 10px', borderRadius: '6px',
+                                  background: ac.bg, color: ac.color,
+                                  fontSize: '11px', fontWeight: 600,
+                                }}>
+                                  <i className={`fas ${ac.icon}`} style={{ fontSize: '10px' }} />
+                                  {log.action.replace(/_/g, ' ')}
+                                </span>
+                              </td>
+                              <td>
+                                <span style={{ fontSize: '13px', color: '#a0aec0', wordBreak: 'break-word' }}>
+                                  {log.details || '—'}
+                                </span>
+                              </td>
+                              <td>
+                                <div style={{ fontSize: '13px', color: '#a0aec0' }}>
+                                  {new Date(log.createdAt).toLocaleDateString()}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#636b80' }}>
+                                  {new Date(log.createdAt).toLocaleTimeString()}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {modLogsTotal > 20 && (
+                    <div style={{
+                      display: 'flex', justifyContent: 'center', gap: '8px',
+                      marginTop: '20px', paddingTop: '16px',
+                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      <button
+                        onClick={() => fetchModLogs(modLogsPage - 1)}
+                        disabled={modLogsPage <= 1}
+                        className={`${styles.btn}`}
+                        style={{
+                          padding: '6px 14px', fontSize: '12px',
+                          opacity: modLogsPage <= 1 ? 0.4 : 1,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: '#a0aec0', borderRadius: '8px', cursor: 'pointer',
+                        }}
+                      >
+                        <i className="fas fa-chevron-left" style={{ marginRight: '4px' }} />
+                        Previous
+                      </button>
+                      <span style={{
+                        display: 'flex', alignItems: 'center',
+                        fontSize: '12px', color: '#636b80', padding: '0 12px',
+                      }}>
+                        Page {modLogsPage} of {Math.ceil(modLogsTotal / 20)}
+                      </span>
+                      <button
+                        onClick={() => fetchModLogs(modLogsPage + 1)}
+                        disabled={modLogsPage >= Math.ceil(modLogsTotal / 20)}
+                        className={`${styles.btn}`}
+                        style={{
+                          padding: '6px 14px', fontSize: '12px',
+                          opacity: modLogsPage >= Math.ceil(modLogsTotal / 20) ? 0.4 : 1,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: '#a0aec0', borderRadius: '8px', cursor: 'pointer',
+                        }}
+                      >
+                        Next
+                        <i className="fas fa-chevron-right" style={{ marginLeft: '4px' }} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
         </div>

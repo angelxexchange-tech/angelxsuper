@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/db';
 import Settings from '@/lib/models/Settings';
+import Admin from '@/lib/models/Admin';
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
@@ -22,6 +23,11 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Block moderators from accessing settings
+    if (admin.role === 'moderator') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     await dbConnect();
 
     const settings = await Settings.findOne() || {
@@ -36,7 +42,8 @@ export async function GET(req) {
       referralLevel2: 0.03,
       referralLevel3: 0.02,
       referralLevel4: 0.01,
-      referralLevel5: 0.01
+      referralLevel5: 0.01,
+      moderatorAmountLimit: 500,
     };
 
     return NextResponse.json({ settings });
@@ -51,13 +58,19 @@ export async function POST(req) {
     const admin = getAdminFromCookie(req);
     if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // Block moderators from changing settings
+    if (admin.role === 'moderator') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { 
       rate, depositMin, withdrawMin,
       trc20Address, erc20Address,
       trc20QrUrl, erc20QrUrl,
       referralLevel1, referralLevel2, referralLevel3,
-      referralLevel4, referralLevel5
+      referralLevel4, referralLevel5,
+      moderatorAmountLimit
     } = body;
 
     console.log('Received POST payload:', body);
@@ -92,7 +105,8 @@ export async function POST(req) {
       referralLevel2: parseFloat(referralLevel2) || 0,
       referralLevel3: parseFloat(referralLevel3) || 0,
       referralLevel4: parseFloat(referralLevel4) || 0,
-      referralLevel5: parseFloat(referralLevel5) || 0
+      referralLevel5: parseFloat(referralLevel5) || 0,
+      moderatorAmountLimit: parseFloat(moderatorAmountLimit) || 500,
     };
 
     console.log('Sending to Mongoose:', updateData);
