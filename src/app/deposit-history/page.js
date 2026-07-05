@@ -64,9 +64,10 @@ export default function DepositHistoryPage() {
                 >
                   {history.map((tx) => {
                     const txId = tx.depositId || tx.txnId || tx._id.slice(-8).toUpperCase();
-                    const displayTxId = "TC20****" + txId.slice(-4).toUpperCase();
+                    const displayTxId = "DEP20****" + txId.slice(-4).toUpperCase();
                     const isTRC20 = tx.network?.toUpperCase().includes('TRC20');
-                    const networkIcon = isTRC20 ? '/images/trx.png' : '/images/bnb.png'; // Fallback to bnb for BEP20
+                    const isERC20 = tx.network?.toUpperCase().includes('ERC20');
+                    const networkIcon = isTRC20 ? '/images/trx.png' : isERC20 ? '/images/eth.png' : '/images/bnb.png'; // Fallback to bnb for BEP20
 
                     return (
                       <div key={tx._id} className="history-card">

@@ -82,18 +82,6 @@ export default function SettingPage() {
                     </div>
                   </Link>
                 </div>
-                <div className="bx">
-                  <Link href="">
-                    <div className="image">
-                      <h3>
-                        <img src="images/s-icon5n.jpg" /> Reset transaction password
-                      </h3>
-                    </div>
-                    <div className="arw">
-                      <img src="images/right-arw.png" />
-                    </div>
-                  </Link>
-                </div>
               </div>
 
               <button className="button-style logout" onClick={handleLogout}>

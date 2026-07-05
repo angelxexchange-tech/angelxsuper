@@ -94,7 +94,7 @@ export default function HomePage() {
                 <div className="pic">
                   <img src="image/user-pic1.png" />
                 </div>
-                <h3>{user?.mobile || "+91 ******"}</h3>
+                <h3>{user?.mobile ? `+91 ${user.mobile}` : "+91 ******"}</h3>
               </div>
 
               {user ? (

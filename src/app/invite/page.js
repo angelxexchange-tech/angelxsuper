@@ -10,6 +10,7 @@ export default function DemoPage() {
   const [rates, setRates] = useState({ level1: 0.1, level2: 0.03, level3: 0.02, level4: 0.01, level5: 0.01 });
   const [referralData, setReferralData] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     // Fetch commission rates (public endpoint)
@@ -48,39 +49,42 @@ export default function DemoPage() {
 
   const handleInvite = async () => {
     if (!referralData?.referralLink) return;
-
-    const shareText = `Join AngelX Super and start earning! Use my referral link: ${referralData.referralLink}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'AngelX Super - Invite',
-          text: shareText,
-          url: referralData.referralLink,
-        });
-      } catch (err) {
-        // User cancelled or error — fallback to copy
-        copyToClipboard(referralData.referralLink);
-      }
-    } else {
-      copyToClipboard(referralData.referralLink);
-    }
+    setIsModalOpen(true);
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } else {
+      // Fallback for non-HTTPS environments (e.g., local dev)
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Fallback copy failed', err);
+      }
+      textArea.remove();
+    }
   };
   
   return (
     <div>
       <main>
-        <div className="page-wrappers empty-page" style={{height: "120vh"}}>
+        <div className="page-wrappers empty-page" style={{ minHeight: "100vh", paddingBottom: "100px" }}>
 
-  <div className="page-wrapperss page-wrapper-ex page-wrapper-login page-wrapper-loginacc form-wrapper" 
-  style={{}}>
+  <div className="page-wrapperss page-wrapper-ex page-wrapper-login page-wrapper-loginacc form-wrapper">
     <div className="brdc">
       <div className="back-btn">
         <Link href="/home">
@@ -157,11 +161,78 @@ export default function DemoPage() {
       </table>
     </div>
 
-    <div className="login-bx" style={{"margin":"0 0 0 0"}}>
-      <button className="login-btn" onClick={handleInvite} style={{border: "none", cursor: "pointer"}}>
-        {copied ? '✅ Link Copied!' : 'Invite Friends'}
+    <div className="login-bx" style={{ margin: "20px 16px" }}>
+      <button className="login-btn" onClick={handleInvite} style={{border: "none", cursor: "pointer", width: "100%"}}>
+        Invite Friends
       </button>
     </div>
+
+    {/* Bottom Modal for Invite Link */}
+    {isModalOpen && (
+      <>
+        <div 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 999 }}
+          onClick={() => setIsModalOpen(false)}
+        ></div>
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '100%',
+          maxWidth: '500px',
+          backgroundColor: '#fff',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          padding: '24px',
+          zIndex: 1000,
+          boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>Share Invite Link</h3>
+            <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', color: '#888', cursor: 'pointer' }}>&times;</button>
+          </div>
+          
+          <div style={{ 
+            backgroundColor: '#f8f9fa', 
+            padding: '16px', 
+            borderRadius: '12px', 
+            border: '1px solid #e0e0e0',
+            wordBreak: 'break-all',
+            fontSize: '14px',
+            color: '#333',
+            marginBottom: '20px'
+          }}>
+            {referralData?.referralLink}
+          </div>
+          
+          <button 
+            onClick={() => copyToClipboard(referralData?.referralLink)}
+            style={{ 
+              width: '100%', 
+              padding: '14px', 
+              backgroundColor: copied ? '#28a745' : '#10a992', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: '8px', 
+              fontSize: '16px', 
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            {copied ? '✅ Link Copied!' : 'Copy Link'}
+          </button>
+        </div>
+        <style>{`
+          @keyframes slideUp {
+            from { transform: translate(-50%, 100%); }
+            to { transform: translate(-50%, 0); }
+          }
+        `}</style>
+      </>
+    )}
 
   </div>
 </div>
