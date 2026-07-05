@@ -59,7 +59,9 @@ export default function DepositHistoryPage() {
                   <p>No deposit history found</p>
                 </div>
               ) : (
-                <div className="history-list">
+                <div className="history-list"
+                  style={{ marginTop: '35px' }}
+                >
                   {history.map((tx) => {
                     const txId = tx.depositId || tx.txnId || tx._id.slice(-8).toUpperCase();
                     const displayTxId = "TC20****" + txId.slice(-4).toUpperCase();
