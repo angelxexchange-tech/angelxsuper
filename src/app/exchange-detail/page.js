@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Footer from "../components/footer";
 
-export default function ExchangeDetail() {
+function ExchangeDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
@@ -198,5 +198,13 @@ export default function ExchangeDetail() {
       
       <Footer />
     </div>
+  );
+}
+
+export default function ExchangeDetail() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>Loading...</div>}>
+      <ExchangeDetailContent />
+    </Suspense>
   );
 }
