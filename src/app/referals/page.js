@@ -1,12 +1,11 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-
-//import Image from "next/image";
 import Link from 'next/link';
 import Footer from '../components/footer';
+import { useRouter } from 'next/navigation';
 
-
-export default function DemoPage() {
+export default function ReferralsRewardPage() {
+  const router = useRouter();
   const [referralData, setReferralData] = useState(null);
   const [earnings, setEarnings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,7 +13,7 @@ export default function DemoPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
-      setLoading(false);
+      router.push('/login');
       return;
     }
 
@@ -44,118 +43,125 @@ export default function DemoPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [router]);
 
-  const hasReferrals = referralData && (referralData.directReferrals > 0 || earnings.length > 0);
-  
+  // Generate days array from account creation to today
+  const generateDays = () => {
+    if (!referralData || !referralData.accountCreatedAt) return [];
+    
+    const accountDate = new Date(referralData.accountCreatedAt);
+    accountDate.setHours(0,0,0,0);
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const days = [];
+    const current = new Date(today);
+    
+    while (current >= accountDate) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() - 1);
+    }
+    
+    return days;
+  };
+
+  const getRewardForDay = (dateObj) => {
+    const dateStr = dateObj.toISOString().split('T')[0];
+    const dailyEarnings = earnings.filter(e => {
+      const eDateStr = new Date(e.createdAt).toISOString().split('T')[0];
+      return eDateStr === dateStr;
+    });
+    
+    const total = dailyEarnings.reduce((sum, e) => sum + e.amount, 0);
+    return total;
+  };
+
+  const daysList = generateDays();
+
   return (
     <div>
       <main>
-        <div className="page-wrappers empty-page  full-height">
+        <div className="page-wrappers empty-page full-height" style={{ backgroundColor: '#F8F9FA', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="page-wrapperss page-wrapper-ex page-wrapper-login page-wrapper-loginacc form-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0 }}>
+            <header style={{
+              backgroundColor: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '16px',
+              position: 'relative'
+            }}>
+              <div style={{ cursor: 'pointer', position: 'absolute', left: '16px' }} onClick={() => router.back()}>
+                <img src="/images/back-btn.png" alt="Back" style={{ width: '20px' }} />
+              </div>
+              <h3 style={{ margin: '0 auto', fontSize: '18px', fontWeight: '700', color: '#111' }}>Referrals reward</h3>
+            </header>
 
-  <div className="page-wrapperss page-wrapper-ex page-wrapper-login page-wrapper-loginacc form-wrapper">
-    <div className="brdc">
-      <div className="back-btn">
-        <Link href="/home">
-          <img src="images/back-btn.png" />
-        </Link>
-      </div>
-      <h3>Referals</h3>
-    </div>
-    <section className="section-1a banner-img">
-      <div className="image">
-        <img src="images/ref-img.jpg" style={{"width":"100%"}} />
-      </div>
-    </section>
+            <div style={{ flex: 1, backgroundColor: '#fff' }}>
+              {/* Table Header */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px',
+                borderBottom: '1px solid #f1f1f1'
+              }}>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>Date</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>Reward</span>
+                  <div style={{ 
+                    width: '20px', 
+                    height: '20px', 
+                    backgroundColor: '#f1c40f', 
+                    borderRadius: '50%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    color: '#fff'
+                  }}>💸</div>
+                </div>
+              </div>
 
-    {loading ? (
-      <section className="section-1">
-        <div style={{textAlign: "center", padding: "20px", color: "#888"}}>Loading...</div>
-      </section>
-    ) : hasReferrals ? (
-      <>
-        {/* Referral Stats */}
-        <div className="pricerefBx" style={{marginBottom: "10px"}}>
-          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
-            <div>
-              <p style={{fontSize: "12px", color: "#888", margin: 0}}>Your Code</p>
-              <p style={{fontSize: "16px", fontWeight: "bold", margin: "4px 0", letterSpacing: "2px"}}>{referralData?.referralCode}</p>
+              {/* Loading State */}
+              {loading && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>Loading...</div>
+              )}
+
+              {/* Days List */}
+              {!loading && daysList.map((day, index) => {
+                const reward = getRewardForDay(day);
+                const isEven = index % 2 === 0;
+                
+                const formattedDate = day.toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric'
+                });
+                
+                return (
+                  <div key={index} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    backgroundColor: isEven ? '#efefef' : '#ffffff'
+                  }}>
+                    <span style={{ fontSize: '14px', color: '#555' }}>{formattedDate}</span>
+                    <span style={{ fontSize: '14px', color: '#06b58f' }}>{reward > 0 ? reward.toFixed(4) : '0'}</span>
+                  </div>
+                );
+              })}
+
+              {!loading && daysList.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>No data available.</div>
+              )}
             </div>
-            <div style={{textAlign: "center"}}>
-              <p style={{fontSize: "12px", color: "#888", margin: 0}}>Referrals</p>
-              <p style={{fontSize: "16px", fontWeight: "bold", margin: "4px 0"}}>{referralData?.directReferrals || 0}</p>
-            </div>
-            <div style={{textAlign: "right"}}>
-              <p style={{fontSize: "12px", color: "#888", margin: 0}}>Earnings</p>
-              <p style={{fontSize: "16px", fontWeight: "bold", margin: "4px 0", color: "#10a992"}}>{(referralData?.totalEarnings || 0).toFixed(4)}</p>
-            </div>
+
+            <Footer />
           </div>
         </div>
-
-        {/* Referred Users */}
-        {referralData?.referredUsers?.length > 0 && (
-          <div className="pricerefBx pricerefBx-01" style={{marginBottom: "10px"}}>
-            <h4><b>Invited Users</b></h4>
-            <table width="100%">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {referralData.referredUsers.map((u, i) => (
-                  <tr key={i}>
-                    <td>{u.fullName || u.email}</td>
-                    <td>{new Date(u.joinedAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Earnings History */}
-        {earnings.length > 0 && (
-          <div className="pricerefBx pricerefBx-01">
-            <h4><b>Earnings History</b></h4>
-            <table width="100%">
-              <thead>
-                <tr>
-                  <th>From</th>
-                  <th>Level</th>
-                  <th>Amount</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {earnings.map((e, i) => (
-                  <tr key={i}>
-                    <td>{e.fromUser?.fullName || e.fromUser?.email || 'User'}</td>
-                    <td>L{e.level}</td>
-                    <td style={{color: "#10a992"}}>{e.amount.toFixed(4)}</td>
-                    <td>{new Date(e.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </>
-    ) : (
-      <section className="section-1">
-        <div className="image">
-          <img src="images/empty.jpg" />
-        </div>
-      </section>
-    )}
-  </div>
-</div>
-
-<Footer></Footer>
-
-      </main>    
+      </main>
     </div>
   );
 }
-

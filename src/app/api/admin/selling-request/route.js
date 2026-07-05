@@ -40,6 +40,7 @@ export async function POST(req) {
       currency: "USDT",
       network: "BANK",
       address: bank.accountNo,
+      bankDetails: bank,
       status: "PENDING",
     });
 

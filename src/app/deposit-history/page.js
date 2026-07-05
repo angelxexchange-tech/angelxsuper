@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Footer from "../components/footer";
 import { useRouter } from "next/navigation";
+import Footer from "../components/footer";
 
-export default function DemoPage() {
+export default function DepositHistoryPage() {
   const router = useRouter();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,13 +23,11 @@ export default function DemoPage() {
         });
         if (!res.ok) throw new Error("Unauthorized");
         const data = await res.json();
-        // filter for exchange / withdraw (type === 'SELL')
-        const exchanges = (data.history || []).filter(tx => tx.type?.toUpperCase() === 'SELL');
-        setHistory(exchanges);
+        // filter for deposits
+        const deposits = (data.history || []).filter(tx => tx.type?.toLowerCase() === 'deposit' || tx.type === 'DEPOSIT');
+        setHistory(deposits);
       } catch (err) {
         console.error(err);
-        localStorage.removeItem("token");
-        router.push("/login");
       } finally {
         setLoading(false);
       }
@@ -42,12 +40,12 @@ export default function DemoPage() {
     <div style={{ backgroundColor: '#F8F9FA', minHeight: '100vh' }}>
       <main>
         <div className="page-wrappers no-empty-page">
-          <header className="header" style={{backgroundColor: '#fff', borderBottom: '1px solid #eee'}}>
+          <header className="header" style={{ backgroundColor: '#fff', borderBottom: '1px solid #eee' }}>
             <div className="brdc">
-              <div className="back-btn" onClick={() => router.back()} style={{cursor: 'pointer'}}>
+              <div className="back-btn" onClick={() => router.back()} style={{ cursor: 'pointer' }}>
                 <img src="/images/back-btn.png" alt="Back" style={{ width: '20px' }} />
               </div>
-              <h3>Exchange History</h3>
+              <h3>Deposit History</h3>
             </div>
           </header>
 
@@ -58,20 +56,18 @@ export default function DemoPage() {
               ) : history.length === 0 ? (
                 <div className="empty-state">
                   <img src="/images/empty.jpg" alt="No History" width="120" />
-                  <p>No transactions found</p>
+                  <p>No deposit history found</p>
                 </div>
               ) : (
                 <div className="history-list">
                   {history.map((tx) => {
-                    const rawId = tx.depositId || tx.txnId || tx._id.slice(-8).toUpperCase();
-                    // Match CD20**** pattern for Exchange
-                    const displayTxId = "CD20****" + rawId.slice(-4).toUpperCase();
-                    const statusText = tx.status === 'APPROVED' ? 'Success' : (tx.status || 'Pending');
-                    const statusColor = statusText.toLowerCase() === 'success' ? '#28a745' : '#f39c12';
-                    const inrAmount = (tx.amount * 112.5).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                    const txId = tx.depositId || tx.txnId || tx._id.slice(-8).toUpperCase();
+                    const displayTxId = "TC20****" + txId.slice(-4).toUpperCase();
+                    const isTRC20 = tx.network?.toUpperCase().includes('TRC20');
+                    const networkIcon = isTRC20 ? '/images/trx.png' : '/images/bnb.png'; // Fallback to bnb for BEP20
 
                     return (
-                      <Link href={`/exchange-detail?id=${tx._id || tx.id}`} key={tx._id || tx.id} className="history-card" style={{ textDecoration: 'none', display: 'block' }}>
+                      <div key={tx._id} className="history-card">
                         <div className="card-top">
                           <div className="id-section">
                             <div className="doc-icon">
@@ -85,25 +81,17 @@ export default function DemoPage() {
                             </div>
                             <span className="tx-id">{displayTxId}</span>
                           </div>
-                          <div className="status" style={{ color: statusColor }}>{statusText}</div>
+                          <div className="status">{tx.status === 'APPROVED' ? 'Finish' : tx.status || 'Finish'}</div>
                         </div>
-                        
+
                         <div className="card-middle">
                           <div className="info-row">
-                            <span className="label">Payment Method</span>
-                            <span className="value">IMPS</span>
-                          </div>
-                          
-                          <div className="info-row">
-                            <span className="label">Trade detail</span>
-                            <span className="value trade-detail-val">
-                              <span className="tether-icon">₮</span>
-                              <span>{tx.amount}</span>
-                              <span className="exchange-arrows">⇆</span>
-                              <span>₹{inrAmount}</span>
+                            <span className="label">Network</span>
+                            <span className="value">
+                              <img src={networkIcon} alt="network" width="16" height="16" className="network-icon" />
+                              {tx.network || 'BEP20-USDT'}
                             </span>
                           </div>
-
                           <div className="info-row">
                             <span className="label">Create time</span>
                             <span className="value date-value">
@@ -119,7 +107,15 @@ export default function DemoPage() {
                             </span>
                           </div>
                         </div>
-                      </Link>
+
+                        <div className="card-bottom">
+                          <span className="label">Trade detail</span>
+                          <span className="amount">
+                            <span className="tether-icon">₮</span>
+                            <span className="amount-val">{tx.amount}</span>
+                          </span>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -196,11 +192,16 @@ export default function DemoPage() {
         }
 
         .status {
-          font-weight: 700;
+          font-weight: 600;
           font-size: 14px;
+          color: #333;
         }
 
         .card-middle {
+          background-color: #F5F5F5;
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 16px;
           display: flex;
           flex-direction: column;
           gap: 12px;
@@ -223,37 +224,46 @@ export default function DemoPage() {
           gap: 6px;
           font-weight: 600;
           font-size: 13px;
-          color: #111;
+          color: #333;
         }
-
+        
         .date-value {
           font-weight: 500;
         }
 
-        .trade-detail-val {
+        .network-icon {
+          border-radius: 50%;
+        }
+
+        .card-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .amount {
           display: flex;
           align-items: center;
           gap: 6px;
-        }
-
-        .exchange-arrows {
-          color: #888;
-          font-size: 16px;
-          font-weight: bold;
-          margin: 0 4px;
         }
 
         .tether-icon {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 16px;
-          height: 16px;
+          width: 18px;
+          height: 18px;
           background-color: #26A17B;
           color: #fff;
           border-radius: 50%;
           font-size: 10px;
           font-weight: bold;
+        }
+
+        .amount-val {
+          font-weight: 700;
+          font-size: 16px;
+          color: #111;
         }
       `}</style>
     </div>

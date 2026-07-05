@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 export default function AddBankCard() {
   const [accountNo, setAccountNo] = useState('');
+  const [bankName, setBankName] = useState('');
   const [ifsc, setIfsc] = useState('');
   const [payeeName, setPayeeName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,7 +15,7 @@ export default function AddBankCard() {
   const [messageType, setMessageType] = useState(''); 
   const router = useRouter();
 const handleSubmit = async () => {
-  if (!accountNo || !ifsc || !payeeName) {
+  if (!accountNo || !bankName || !ifsc || !payeeName) {
     setMessageType('error');
     setMessage('Please fill all fields.');
     return;
@@ -37,7 +38,7 @@ const handleSubmit = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ accountNo, ifsc, payeeName }),
+      body: JSON.stringify({ accountNo, bankName, ifsc, payeeName }),
     });
 
     const data = await response.json();
@@ -47,6 +48,7 @@ const handleSubmit = async () => {
       setMessageType('success');
       setMessage('Bank card added successfully! Redirecting...');
       setAccountNo('');
+      setBankName('');
       setIfsc('');
       setPayeeName('');
 
@@ -59,6 +61,7 @@ const handleSubmit = async () => {
       setMessageType('error');
       setMessage(data.message || 'Failed to add bank card.');
       setAccountNo('');
+      setBankName('');
       setIfsc('');
       setPayeeName('');
     }
@@ -67,6 +70,7 @@ const handleSubmit = async () => {
     setMessageType('error');
     setMessage('Something went wrong.');
     setAccountNo('');
+    setBankName('');
     setIfsc('');
     setPayeeName('');
   } finally {
@@ -101,6 +105,17 @@ const handleSubmit = async () => {
                     placeholder="Please enter Account No."
                     value={accountNo}
                     onChange={(e) => setAccountNo(e.target.value.replace(/\D/g, ''))} // only digits
+                  />
+                </div>
+
+                <div className="form-rw">
+                  <label className="text" htmlFor="bank-name">BankName.</label>
+                  <input
+                    type="text"
+                    id="bank-name"
+                    placeholder="Please enter Bank Name."
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
                   />
                 </div>
 

@@ -13,6 +13,7 @@ export default function AdminDepositsPage() {
 
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
 
@@ -68,6 +69,16 @@ export default function AdminDepositsPage() {
   const closeRejectModal = () => {
     setIsRejectModalOpen(false);
     setRejectionReason('');
+    setSelectedDeposit(null);
+  };
+
+  const openDetailsModal = (deposit) => {
+    setSelectedDeposit(deposit);
+    setIsDetailsModalOpen(true);
+  };
+
+  const closeDetailsModal = () => {
+    setIsDetailsModalOpen(false);
     setSelectedDeposit(null);
   };
 
@@ -127,14 +138,16 @@ export default function AdminDepositsPage() {
                 </tr>
               </thead>
               <tbody>
-                {deposits.map((d) => (
-                  <tr key={d.id}>
+                {deposits.map((d) => {
+                  const txId = d._id || d.id;
+                  return (
+                  <tr key={txId}>
                     <td>
-                      <div style={{ fontWeight: 600, color: "#111827" }}>{d.user?.email || 'N/A'}</div>
-                      <div style={{ fontSize: "12px", color: "#6b7280" }}>ID: #{d.id}</div>
+                      <div style={{ fontWeight: 600, color: "#e2e8f0" }}>{d.user?.email || 'N/A'}</div>
+                      <div style={{ fontSize: "12px", color: "#94a3b8" }}>ID: #{txId}</div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: "#111827" }}>${d.amount}</div>
+                      <div style={{ fontWeight: 600, color: "#e2e8f0" }}>${d.amount}</div>
                     </td>
                     <td>
                       <span className={`${styles.statBadge} ${styles.badgeBlue}`}>
@@ -142,13 +155,21 @@ export default function AdminDepositsPage() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ fontSize: "14px", color: "#374151" }}>{new Date(d.createdAt).toLocaleDateString()}</div>
-                      <div style={{ fontSize: "12px", color: "#6b7280" }}>{new Date(d.createdAt).toLocaleTimeString()}</div>
+                      <div style={{ fontSize: "14px", color: "#cbd5e1" }}>{new Date(d.createdAt).toLocaleDateString()}</div>
+                      <div style={{ fontSize: "12px", color: "#94a3b8" }}>{new Date(d.createdAt).toLocaleTimeString()}</div>
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: "8px" }}>
                         <button 
-                          onClick={() => handleConfirm(d.id)} 
+                          onClick={() => openDetailsModal(d)} 
+                          className={styles.viewAllBtn}
+                          style={{ background: "#3b82f6" }}
+                          title="View Details"
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        <button 
+                          onClick={() => handleConfirm(txId)} 
                           className={styles.viewAllBtn}
                           style={{ background: "#10b981" }}
                           disabled={processing}
@@ -168,7 +189,7 @@ export default function AdminDepositsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
@@ -204,6 +225,59 @@ export default function AdminDepositsPage() {
             ></textarea>
           </div>
         </div>
+      </Modal>
+
+      {/* Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={closeDetailsModal}
+        title="Deposit Details"
+        footer={
+          <button className={styles.btnSecondary} onClick={closeDetailsModal}>Close</button>
+        }
+      >
+        {selectedDeposit && (
+          <div style={{ color: '#e2e8f0' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>User Email</div>
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedDeposit.user?.email || 'N/A'}</div>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Amount</div>
+                <div style={{ fontSize: '18px', fontWeight: 600, color: '#10b981' }}>${selectedDeposit.amount}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Network</div>
+                <div style={{ fontSize: '14px', fontWeight: 500, padding: '2px 8px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', display: 'inline-block' }}>{selectedDeposit.network}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Transaction ID / Deposit ID</div>
+              <div style={{ fontSize: '14px', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '4px', wordBreak: 'break-all' }}>
+                {selectedDeposit.txnId || selectedDeposit.depositId || selectedDeposit._id || selectedDeposit.id}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Date Submitted</div>
+              <div style={{ fontSize: '14px' }}>
+                {new Date(selectedDeposit.createdAt).toLocaleString()}
+              </div>
+            </div>
+
+            {selectedDeposit.address && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Address (From)</div>
+                <div style={{ fontSize: '14px', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '4px', wordBreak: 'break-all' }}>
+                  {selectedDeposit.address}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </>
   );

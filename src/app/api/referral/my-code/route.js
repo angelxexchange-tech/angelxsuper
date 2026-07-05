@@ -46,6 +46,7 @@ export async function GET(req) {
         referralLink,
         directReferrals,
         totalEarnings,
+        accountCreatedAt: fullUser?.createdAt,
         referredUsers: referredUsers.map((u) => ({
           email: u.email,
           fullName: u.fullName,

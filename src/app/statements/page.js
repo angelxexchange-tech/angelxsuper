@@ -7,6 +7,7 @@ import Footer from '../components/footer';
 export default function StatementsPage() {
   const router = useRouter();
   const [statements, setStatements] = useState([]);
+  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,14 +17,21 @@ export default function StatementsPage() {
       return;
     }
 
-    const fetchStatements = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/statements", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const [stmtRes, walletRes] = await Promise.all([
+          fetch("/api/statements", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        
+        if (stmtRes.ok) {
+          const data = await stmtRes.json();
           setStatements(data.statements || []);
+        }
+        
+        if (walletRes.ok) {
+          const wData = await walletRes.json();
+          setBalance(wData.usdtAvailable || 0);
         }
       } catch (err) {
         console.error(err);
@@ -32,74 +40,149 @@ export default function StatementsPage() {
       }
     };
 
-    fetchStatements();
+    fetchData();
   }, [router]);
+
+  // Group by Date
+  const groupedStatements = statements.reduce((acc, stmt) => {
+    const d = new Date(stmt.createdAt);
+    const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(stmt);
+    return acc;
+  }, {});
 
   return (
     <div>
       <main>
-        <div className="page-wrappers empty-page full-height">
-          <div className="page-wrapperss page-wrapper-ex page-wrapper-login page-wrapper-loginacc form-wrapper">
-            <div className="brdc">
-              <div className="back-btn">
-                <Link href="/home">
-                  <img src="images/back-btn.png" alt="Back" />
-                </Link>
+        <div className="page-wrappers empty-page full-height" style={{ backgroundColor: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="page-wrapperss page-wrapper-ex page-wrapper-login page-wrapper-loginacc form-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0 }}>
+            
+            {/* Header */}
+            <header style={{
+              backgroundColor: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '16px',
+              position: 'relative',
+              borderBottom: '1px solid #f1f1f1'
+            }}>
+              <div style={{ cursor: 'pointer', position: 'absolute', left: '16px' }} onClick={() => router.back()}>
+                <img src="/images/back-btn.png" alt="Back" style={{ width: '20px' }} />
               </div>
-              <h3>Statements</h3>
-            </div>
-            <section className="section-1">
-              {loading ? (
-                <p style={{ textAlign: "center", padding: "20px" }}>Loading...</p>
-              ) : statements.length === 0 ? (
-                <div className="image">
-                  <img src="images/empty.jpg" alt="Empty" />
-                  <p style={{ textAlign: "center", color: "#666" }}>No statements found</p>
+              <h3 style={{ margin: '0 auto', fontSize: '18px', fontWeight: '700', color: '#111' }}>Statements</h3>
+            </header>
+
+            <div style={{ padding: '16px', flex: 1 }}>
+              {/* Wallet Banner Card */}
+              <div style={{
+                backgroundColor: '#e8f5e9',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px'
+              }}>
+                <div>
+                  <div style={{ color: '#555', fontSize: '14px', marginBottom: '8px' }}>Wallet total amount</div>
+                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#111' }}>${balance.toFixed(2)}</div>
                 </div>
+                <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                  <div style={{ 
+                    position: 'absolute', 
+                    bottom: 0, 
+                    left: 0, 
+                    width: '40px', 
+                    height: '40px', 
+                    backgroundColor: '#4285f4', 
+                    borderRadius: '8px' 
+                  }}></div>
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    right: 0, 
+                    width: '24px', 
+                    height: '16px', 
+                    backgroundColor: '#8bc34a', 
+                    borderRadius: '4px' 
+                  }}></div>
+                </div>
+              </div>
+
+              {loading ? (
+                <p style={{ textAlign: "center", padding: "20px", color: "#888" }}>Loading...</p>
+              ) : Object.keys(groupedStatements).length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>No statements available.</div>
               ) : (
-                <div className="history-list" style={{ padding: "0 16px" }}>
-                  {statements.map((stmt) => (
-                    <div key={stmt.id} className="history-card" style={{
-                      background: "#fff",
-                      borderRadius: "12px",
-                      padding: "16px",
-                      marginBottom: "12px",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
-                    }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <span style={{ fontWeight: "600", color: "#333" }}>{stmt.type}</span>
-                        <span style={{ 
-                          fontWeight: "600", 
-                          color: stmt.type === 'DEPOSIT' || stmt.type === 'ADMIN_CREDIT' ? '#10b981' : '#ef4444' 
-                        }}>
-                          {stmt.type === 'DEPOSIT' || stmt.type === 'ADMIN_CREDIT' ? '+' : '-'}${stmt.amount}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#666" }}>
-                        <span>{new Date(stmt.createdAt).toLocaleDateString()}</span>
-                        <span style={{ 
-                          padding: "2px 8px", 
-                          borderRadius: "4px", 
-                          background: stmt.status === 'COMPLETED' ? '#ecfdf5' : '#fffbeb',
-                          color: stmt.status === 'COMPLETED' ? '#047857' : '#b45309',
-                          fontSize: "11px"
-                        }}>
-                          {stmt.status}
-                        </span>
-                      </div>
-                      {stmt.description && (
-                        <div style={{ marginTop: "8px", fontSize: "12px", color: "#999", borderTop: "1px solid #eee", paddingTop: "8px" }}>
-                          {stmt.description}
-                        </div>
-                      )}
+                <div style={{ paddingBottom: '20px' }}>
+                  {Object.entries(groupedStatements).map(([dateStr, stmts]) => (
+                    <div key={dateStr} style={{ marginBottom: '8px' }}>
+                      <div style={{ color: '#888', fontSize: '13px', marginBottom: '12px' }}>{dateStr}</div>
+                      
+                      {stmts.map((stmt, i) => {
+                        const isDeposit = stmt.type === 'DEPOSIT' || stmt.type === 'ADMIN_CREDIT';
+                        const amountStr = (isDeposit ? '+$' : '-$') + stmt.amount.toFixed(2);
+                        const amountColor = isDeposit ? '#28a745' : '#e74c3c';
+                        
+                        const timeStr = new Date(stmt.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        
+                        // Map type names
+                        let typeName = stmt.type;
+                        if (typeName === 'SELL') typeName = 'Exchange';
+                        else typeName = typeName.charAt(0).toUpperCase() + typeName.slice(1).toLowerCase();
+
+                        // Map Status
+                        let statusText = stmt.status;
+                        if (statusText === 'PENDING') statusText = 'Pending';
+                        if (statusText === 'SUCCESS' || statusText === 'COMPLETED' || statusText === 'APPROVED') statusText = 'Success';
+                        if (statusText === 'FAILED' || statusText === 'REJECTED') statusText = 'Failed';
+
+                        return (
+                          <div key={i} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '12px 0',
+                            borderBottom: '1px solid #f1f1f1'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ 
+                                width: '36px', 
+                                height: '36px', 
+                                backgroundColor: '#f8f9fa', 
+                                border: '1px solid #eee',
+                                borderRadius: '50%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                color: '#555',
+                                fontSize: '18px'
+                              }}>
+                                ⇄
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '15px', fontWeight: '600', color: '#111', marginBottom: '4px' }}>{typeName}</div>
+                                <div style={{ fontSize: '12px', color: '#888' }}>{timeStr}</div>
+                              </div>
+                            </div>
+                            
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '15px', fontWeight: '700', color: amountColor, marginBottom: '4px' }}>{amountStr}</div>
+                              <div style={{ fontSize: '12px', color: '#888' }}>Status: {statusText}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
               )}
-            </section>
+            </div>
+
+            <Footer />
           </div>
         </div>
-        <Footer />
       </main>
     </div>
   );

@@ -13,8 +13,10 @@ export default function AdminSellingRequests() {
   
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [acceptRemark, setAcceptRemark] = useState('');
   const [processing, setProcessing] = useState(false);
 
   const fetchRequests = async () => {
@@ -30,21 +32,32 @@ export default function AdminSellingRequests() {
     }
   };
 
-  const handleConfirm = async (id) => {
-    const ok = await confirm('Confirm this selling request?');
-    if (!ok) return;
+  const openAcceptModal = (request) => {
+    setSelectedRequest(request);
+    setAcceptRemark('');
+    setIsAcceptModalOpen(true);
+  };
+
+  const closeAcceptModal = () => {
+    setIsAcceptModalOpen(false);
+    setAcceptRemark('');
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedRequest) return;
     
     setProcessing(true);
     try {
       const res = await fetch('/api/admin/confirm-selling-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: id }),
+        body: JSON.stringify({ transactionId: selectedRequest._id || selectedRequest.id, remark: acceptRemark }),
       });
       const data = await res.json();
       if (res.ok) {
         showToast('Selling request confirmed ✅', 'success');
         fetchRequests();
+        closeAcceptModal();
         closeDetailsModal();
       } else showToast(data.error || 'Failed to confirm request', 'error');
     } catch (err) {
@@ -69,7 +82,7 @@ export default function AdminSellingRequests() {
       const res = await fetch('/api/admin/reject-selling-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: selectedRequest.id, reason: rejectionReason }),
+        body: JSON.stringify({ transactionId: selectedRequest._id || selectedRequest.id, reason: rejectionReason }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -129,17 +142,19 @@ export default function AdminSellingRequests() {
               </tr>
             </thead>
             <tbody>
-              {requests.length > 0 ? requests.map((r) => (
-                <tr key={r.id}>
+              {requests.length > 0 ? requests.map((r) => {
+                const txId = r._id || r.id;
+                return (
+                <tr key={txId}>
                   <td>
-                    <div style={{ fontWeight: 600, color: "#111827" }}>{r.user?.email || 'N/A'}</div>
-                    <div style={{ fontSize: "12px", color: "#6b7280" }}>ID: #{r.id}</div>
+                    <div style={{ fontWeight: 600, color: "#e2e8f0" }}>{r.user?.email || 'N/A'}</div>
+                    <div style={{ fontSize: "12px", color: "#94a3b8" }}>ID: #{txId}</div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 600, color: "#111827" }}>${r.amount}</div>
+                    <div style={{ fontWeight: 600, color: "#e2e8f0" }}>${r.amount}</div>
                   </td>
                   <td>
-                    <div style={{ fontSize: "14px", color: "#374151", fontFamily: "monospace" }}>{r.address?.substring(0, 12)}...</div>
+                    <div style={{ fontSize: "14px", color: "#cbd5e1", fontFamily: "monospace" }}>{r.address?.substring(0, 12)}...</div>
                   </td>
                   <td>
                     <span className={`${styles.statBadge} ${styles.badgeYellow}`}>
@@ -156,7 +171,7 @@ export default function AdminSellingRequests() {
                         Details
                       </button>
                       <button 
-                        onClick={() => handleConfirm(r.id)} 
+                        onClick={() => openAcceptModal(r)} 
                         className={styles.viewAllBtn}
                         style={{ background: "#10b981" }}
                         disabled={processing}
@@ -174,7 +189,7 @@ export default function AdminSellingRequests() {
                     </div>
                   </td>
                 </tr>
-              )) : (
+              )}) : (
                 <tr>
                   <td colSpan="5" style={{ textAlign: "center", padding: "32px", color: "#6b7280" }}>
                     No pending selling requests found.
@@ -195,7 +210,7 @@ export default function AdminSellingRequests() {
           <>
             <button className={styles.btnSecondary} onClick={closeDetailsModal}>Close</button>
             <button className={styles.btnDanger} onClick={() => openRejectModal(selectedRequest)}>Reject</button>
-            <button className={styles.btnPrimary} onClick={() => handleConfirm(selectedRequest?.id)}>Confirm Withdrawal</button>
+            <button className={styles.btnPrimary} onClick={() => openAcceptModal(selectedRequest)}>Confirm Withdrawal</button>
           </>
         }
       >
@@ -203,7 +218,7 @@ export default function AdminSellingRequests() {
           <div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Transaction ID</span>
-              <span className={styles.detailValue}>#{selectedRequest.id}</span>
+              <span className={styles.detailValue}>#{selectedRequest._id || selectedRequest.id}</span>
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>User Email</span>
@@ -223,9 +238,18 @@ export default function AdminSellingRequests() {
             </div>
             
             <div style={{ marginTop: '20px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: '#374151' }}>Bank/Wallet Details</h4>
-              <div style={{ background: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb', wordBreak: 'break-all' }}>
-                {selectedRequest.address || 'No address provided'}
+              <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: '#cbd5e1' }}>Bank/Wallet Details</h4>
+              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', wordBreak: 'break-all', color: '#e2e8f0' }}>
+                {selectedRequest.bankDetails ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px' }}>
+                    <div><strong style={{color: '#94a3b8'}}>Bank:</strong> {selectedRequest.bankDetails.bankName || 'N/A'}</div>
+                    <div><strong style={{color: '#94a3b8'}}>Account No:</strong> {selectedRequest.bankDetails.accountNo || selectedRequest.address}</div>
+                    <div><strong style={{color: '#94a3b8'}}>IFSC:</strong> {selectedRequest.bankDetails.ifsc || 'N/A'}</div>
+                    <div><strong style={{color: '#94a3b8'}}>Payee Name:</strong> {selectedRequest.bankDetails.payeeName || 'N/A'}</div>
+                  </div>
+                ) : (
+                  selectedRequest.address || 'No address provided'
+                )}
               </div>
             </div>
           </div>
@@ -258,6 +282,37 @@ export default function AdminSellingRequests() {
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="e.g., Invalid bank details, Suspicious activity..."
+            ></textarea>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Accept Modal */}
+      <Modal
+        isOpen={isAcceptModalOpen}
+        onClose={closeAcceptModal}
+        title="Confirm Request"
+        footer={
+          <>
+            <button className={styles.btnSecondary} onClick={closeAcceptModal}>Cancel</button>
+            <button className={styles.btnPrimary} onClick={handleConfirm} disabled={processing}>
+              {processing ? 'Confirming...' : 'Accept Request'}
+            </button>
+          </>
+        }
+      >
+        <div>
+          <p style={{ marginBottom: '16px', color: '#4b5563' }}>
+            Please provide a remark for accepting this request. This will be visible to the user.
+          </p>
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Acceptance Remark</label>
+            <textarea
+              className={styles.formInput}
+              rows="4"
+              value={acceptRemark}
+              onChange={(e) => setAcceptRemark(e.target.value)}
+              placeholder="e.g., Processed successfully, Ref ID: 123456..."
             ></textarea>
           </div>
         </div>

@@ -14,7 +14,7 @@ export async function POST(req) {
     const admin = verifyAdminCookie(req);
     if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { transactionId } = await req.json();
+    const { transactionId, remark } = await req.json();
     if (!transactionId) {
       return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
     }
@@ -47,6 +47,7 @@ export async function POST(req) {
     );
 
     tx.status = "SUCCESS";
+    if (remark) tx.description = remark;
     await tx.save();
 
     // Distribute referral commissions

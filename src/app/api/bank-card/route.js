@@ -27,7 +27,7 @@ export async function GET(req) {
       return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
     }
 
-    const bankCards = await BankCard.find({ userId: user._id }).select('id accountNo ifsc payeeName createdAt').lean();
+    const bankCards = await BankCard.find({ userId: user._id }).select('id accountNo bankName ifsc payeeName createdAt').lean();
     
     // map _id to id for backwards compatibility in frontend
     const mappedBankCards = bankCards.map(b => ({
@@ -50,8 +50,8 @@ export async function POST(req) {
       return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
     }
 
-    const { accountNo, ifsc, payeeName } = await req.json();
-    if (!accountNo || !ifsc || !payeeName) {
+    const { accountNo, bankName, ifsc, payeeName } = await req.json();
+    if (!accountNo || !bankName || !ifsc || !payeeName) {
       return new Response(JSON.stringify({ message: 'All fields are required' }), { status: 400 });
     }
 
@@ -63,7 +63,7 @@ export async function POST(req) {
     }
 
     const bankCard = await BankCard.create({
-      userId: user._id, accountNo, ifsc, payeeName
+      userId: user._id, accountNo, bankName, ifsc, payeeName
     });
 
     return new Response(JSON.stringify({ message: 'Bank card added successfully!', bankCard }), { status: 200 });
