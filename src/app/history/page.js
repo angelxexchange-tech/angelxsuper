@@ -51,8 +51,8 @@ export default function DemoPage() {
             </div>
           </header>
 
-          <div className="page-wrapperss" style={{ paddingTop: '20px', backgroundColor: '#F8F9FA', minHeight: 'calc(100vh - 60px)' }}>
-            <section className="section-1" style={{ padding: '0 16px 20px 16px' }}>
+          <div className="page-wrapperss" style={{ backgroundColor: '#F8F9FA', minHeight: 'calc(100vh - 60px)', paddingBottom: '60px' }}>
+            <section className="section-1" style={{ padding: '0' }}>
               {loading ? (
                 <p style={{ textAlign: "center", marginTop: "20px", color: "#666" }}>Loading...</p>
               ) : history.length === 0 ? (
@@ -61,7 +61,7 @@ export default function DemoPage() {
                   <p>No transactions found</p>
                 </div>
               ) : (
-                <div className="history-list">
+                <div className="history-list" style={{ marginTop: '35px'  }}>
                   {history.map((tx) => {
                     const rawId = tx.depositId || tx.txnId || tx._id.slice(-8).toUpperCase();
                     // Match CD20**** pattern for Exchange
@@ -71,7 +71,7 @@ export default function DemoPage() {
                     const inrAmount = (tx.amount * 112.5).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
                     return (
-                      <Link href={`/exchange-detail?id=${tx._id || tx.id}`} key={tx._id || tx.id} className="history-card" style={{ textDecoration: 'none', display: 'block' }}>
+                      <Link href={`/exchange-detail?id=${tx._id || tx.id}`} key={tx._id || tx.id} className="history-card" style={{ textDecoration: 'none', display: 'block',  border:"1px solid #dfdfdfff" , padding:"10px" , marginTop:"10px" , borderRadius:"10px" }}>
                         <div className="card-top">
                           <div className="id-section">
                             <div className="doc-icon">
@@ -107,15 +107,7 @@ export default function DemoPage() {
                           <div className="info-row">
                             <span className="label">Create time</span>
                             <span className="value date-value">
-                              {new Date(tx.createdAt).toLocaleString('en-GB', {
-                                day: 'numeric',
-                                month: 'numeric',
-                                year: 'numeric',
-                                hour: 'numeric',
-                                minute: 'numeric',
-                                second: 'numeric',
-                                hour12: true
-                              })}
+                              {`${new Date(tx.createdAt).getDate()}/${new Date(tx.createdAt).getMonth() + 1}/${new Date(tx.createdAt).getFullYear()}, ${new Date(tx.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`}
                             </span>
                           </div>
                         </div>
@@ -149,13 +141,16 @@ export default function DemoPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          padding: 0 16px;
+          background-color: #F8F9FA;
         }
 
         .history-card {
           background-color: #fff;
-          border-radius: 12px;
+          border-radius: 8px;
           padding: 16px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+          border: 1px solid #eaeaea;
         }
 
         .card-top {
@@ -164,14 +159,14 @@ export default function DemoPage() {
           align-items: center;
           padding-bottom: 12px;
           margin-bottom: 12px;
-          border-bottom: 1px solid #F0F2F5;
+          border-bottom: 1px solid #f1f1f1;
           gap: 12px;
         }
 
         .id-section {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
           flex: 1;
           min-width: 0;
         }
@@ -179,7 +174,7 @@ export default function DemoPage() {
         .tx-id {
           font-weight: 700;
           font-size: 15px;
-          color: #111;
+          color: #222;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -213,7 +208,7 @@ export default function DemoPage() {
         }
 
         .label {
-          color: #888;
+          color: #999;
           font-size: 13px;
         }
 
@@ -223,11 +218,12 @@ export default function DemoPage() {
           gap: 6px;
           font-weight: 600;
           font-size: 13px;
-          color: #111;
+          color: #222;
         }
 
         .date-value {
-          font-weight: 500;
+          font-weight: 400;
+          color: #999;
         }
 
         .trade-detail-val {
@@ -237,22 +233,22 @@ export default function DemoPage() {
         }
 
         .exchange-arrows {
-          color: #888;
-          font-size: 16px;
-          font-weight: bold;
-          margin: 0 4px;
+          color: #aaa;
+          font-size: 14px;
+          font-weight: 500;
+          margin: 0 2px;
         }
 
         .tether-icon {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 16px;
-          height: 16px;
+          width: 18px;
+          height: 18px;
           background-color: #26A17B;
           color: #fff;
           border-radius: 50%;
-          font-size: 10px;
+          font-size: 11px;
           font-weight: bold;
         }
       `}</style>
